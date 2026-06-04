@@ -77,3 +77,24 @@ export const driftedTeamResponse = {
     members: 2,
   },
 };
+
+/**
+ * Realistic slice of the actual team page HTML. The members live in a
+ * single-quoted JS string whose JSON has backslash-escaped double quotes — `\\"`
+ * in this template literal produces the literal `\"` the real page contains.
+ */
+export const teamPageHtml = `<!DOCTYPE html><html><head>
+<title>The Push-Up Challenge - A23</title></head><body>
+<a href="/customcode/generateQrcodePng/team/115773?url=Y">qr</a>
+<div class="col-md-4 team-leaderboard">
+  <p class="mt10 mb10 p10">This team is currently ranked 1000+ out of all teams that are fundraising</p>
+</div>
+<script>
+var teamMembers = '[{\\"name\\":\\"Dana Bissell\\",\\"m_username\\":\\"danab\\",\\"m_photo\\":\\"\\",\\"m_event_photo\\":\\"\\",\\"member_id\\":\\"1001\\",\\"member_type\\":\\"team member\\",\\"m_target\\":\\"200\\",\\"m_target_steps\\":\\"3307\\",\\"total_steps\\":\\"12050.00\\",\\"total_distance\\":\\"0.00\\",\\"m_raised\\":1200},{\\"name\\":\\"Sam O'Carter\\",\\"m_username\\":\\"samc\\",\\"member_id\\":\\"1002\\",\\"member_type\\":\\"member\\",\\"m_target_steps\\":\\"3307\\",\\"total_steps\\":\\"9800.00\\",\\"m_raised\\":740},{\\"name\\":\\"Priya Nair\\",\\"m_username\\":\\"priyan\\",\\"member_id\\":\\"1003\\",\\"m_target_steps\\":\\"3307\\",\\"total_steps\\":\\"8600.00\\",\\"m_raised\\":510.5}]';
+var members2 = JSON.parse(teamMembers);
+</script></body></html>`;
+
+/** Same shape but with a concrete numeric team rank. */
+export const teamPageHtmlRanked = `<title>The Push-Up Challenge - Test</title>
+<p>This team is currently ranked 42 out of all teams that are fundraising</p>
+<script>var teamMembers = '[{\\"name\\":\\"Solo\\",\\"member_id\\":\\"7\\",\\"total_steps\\":\\"10\\",\\"m_raised\\":5}]';</script>`;

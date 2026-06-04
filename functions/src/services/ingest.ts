@@ -1,18 +1,18 @@
 import { ChallengeDataProvider, collectWithFallback } from '../scrapers/provider.js';
-import { FunraisinApiProvider } from '../scrapers/funraisinApiProvider.js';
+import { FunraisinPageProvider } from '../scrapers/funraisinPageProvider.js';
 import { ScrapeProvider } from '../scrapers/scrapeProvider.js';
 import { loadTeamTarget, persistCollection, recordSyncRun } from './firestore.js';
 import { logger } from './logger.js';
 import type { SyncRunRecord, TeamTarget } from '../types/index.js';
 
 /**
- * Provider chain in the brief's priority order:
- *   1. Funraisin public JSON API
- *   2. (future official API would slot in here)
- *   3/4. HTML embedded-data / scraping fallback
+ * Provider chain in priority order. Discovery showed the platform's JSON API is
+ * gated, so the primary source is the embedded JSON on the public page; DOM
+ * scraping is the last-ditch fallback. A future credentialed API provider would
+ * slot in ahead of these without touching ingestion. See docs/DataSourceFindings.md.
  */
 export function defaultProviders(): ChallengeDataProvider[] {
-  return [new FunraisinApiProvider(), new ScrapeProvider()];
+  return [new FunraisinPageProvider(), new ScrapeProvider()];
 }
 
 /**

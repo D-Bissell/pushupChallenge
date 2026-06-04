@@ -114,3 +114,86 @@ export function ensureRanks(participants: ParticipantData[]): ParticipantData[] 
   sorted.forEach((p, i) => rankById.set(p.sourceId, i + 1));
   return participants.map((p) => ({ ...p, rank: rankById.get(p.sourceId) }));
 }
+
+// ---------------------------------------------------------------------------
+// Embedded-page parsing (the real source — see docs/DataSourceFindings.md).
+//
+// The Funraisin team page is server-rendered and embeds the member list as a
+// single-quoted JS string of JSON:
+//   var teamMembers = '[{"name":"…","member_id":"…","total_steps":"172.00",
+//                        "m_raised":0,"m_username":"…","m_target_steps":"3307"}]';
+//   var members2 = JSON.parse(teamMembers);
+// Push-ups are stored in `total_steps`; dollars in `m_raised`.
+// ---------------------------------------------------------------------------
+
+/** Unescape a JS single-quoted string body (handles \" \' \/ \\ \n \t etc.). */
+export function unescapeJsString(s: string): string {
+  return s.replace(/\\(["'/\\bfnrt])/g, (_m, c: string) => {
+    switch (c) {
+      case 'n':
+        return '\n';
+      case 't':
+        return '\t';
+      case 'r':
+        return '\r';
+      case 'b':
+        return '\b';
+      case 'f':
+        return '\f';
+      default:
+        return c; // " ' / \
+    }
+  });
+}
+
+/** Extract and parse the embedded `teamMembers` JSON array from page HTML. */
+export function extractTeamMembers(html: string): Raw[] {
+  // Accept single- or double-quoted assignment, with or without `var`/`let`.
+  const m =
+    html.match(/teamMembers\s*=\s*'([\s\S]*?)';/) ??
+    html.match(/teamMembers\s*=\s*"([\s\S]*?)";/);
+  if (!m) return [];
+  try {
+    const parsed = JSON.parse(unescapeJsString(m[1]));
+    return Array.isArray(parsed) ? (parsed as Raw[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** The team's numeric source id, leaked in /team/<id> URLs on the page. */
+export function extractTeamId(html: string): string | null {
+  return html.match(/\/team\/(\d+)/)?.[1] ?? null;
+}
+
+/** Team display name from the page <title>, stripped of the site prefix. */
+export function extractTeamName(html: string, slug: string): string {
+  const title = html.match(/<title>([^<]*)<\/title>/i)?.[1] ?? '';
+  const cleaned = title.replace(/^\s*the push-up challenge\s*[-:]\s*/i, '').trim();
+  return cleaned || slug.toUpperCase();
+}
+
+/** Team rank from "currently ranked N" text; null when shown as "1000+". */
+export function extractTeamRank(html: string): number | null {
+  const m = html.match(/currently ranked\s+([\d,]+)(\+?)/i);
+  if (!m || m[2] === '+') return null;
+  return toNumber(m[1]);
+}
+
+/** Map one embedded member object to our normalised participant. */
+export function mapPageMember(raw: Raw, index: number): ParticipantData {
+  const total = toNumber(pick(raw, ['total_steps']));
+  const photo = pick(raw, ['m_photo', 'm_event_photo']);
+  return {
+    sourceId: toStringId(pick(raw, ['member_id', 'id'])) || `idx-${index}`,
+    slug: pick(raw, ['m_username']) ? String(pick(raw, ['m_username'])) : undefined,
+    name: String(pick(raw, ['name']) ?? `Participant ${index + 1}`).trim(),
+    // A single page fetch only exposes cumulative totals; per-day figures are
+    // derived later from snapshot diffs.
+    todayPushUps: 0,
+    totalPushUps: Math.round(total),
+    fundraising: toNumber(pick(raw, ['m_raised', 'total_raised'])),
+    avatarUrl: photo ? String(photo) : undefined,
+    active: true,
+  };
+}

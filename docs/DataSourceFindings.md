@@ -6,6 +6,47 @@
 
 ---
 
+## 0. Production verification (2026-06-04) — what actually works
+
+The initial plan assumed Funraisin's public JSON API. **Live probing from GitHub
+Actions** (the build sandbox can't reach the host) disproved that for anonymous
+access:
+
+| Endpoint | Result |
+| -------- | ------ |
+| `/api/teams/*`, `/api/topfundraisers/*` | `200` `"Incorrect username or password"` — CRM API, needs HTTP Basic auth. |
+| `/api/fundraiser_profile/{id}`, `/api/fundraiser_team_leaderboard/{id}/...` | `403` `{"error":true,"errormessage":"access denied"}` — even with the **real numeric team id** `115773`. |
+| `/fundraisers/a23` (the page) | `200`, server-rendered HTML **containing the data**. |
+
+**Conclusion: there is no anonymous JSON API.** The team page, however, embeds the
+full member list as a JSON string:
+
+```js
+var teamMembers = '[{"name":"…","member_id":"…","total_steps":"172.00",
+                     "m_raised":0,"m_username":"…","m_target_steps":"3307"}]';
+var members2 = JSON.parse(teamMembers);
+```
+
+- `total_steps` → **push-ups**; `m_raised` → **dollars raised**; `m_username` →
+  profile slug; `m_target_steps` → cumulative challenge target.
+- Numeric team id is leaked in `/team/{id}` URLs; team name from `<title>`; team
+  rank from "currently ranked N" text.
+
+**Implemented source:** `FunraisinPageProvider` fetches the page and parses that
+embedded JSON (one request/run, no brittle DOM selectors). The gated-API provider
+is retained for a future credentialed path; DOM scraping remains the last-ditch
+fallback. The provider interface meant this pivot touched only the providers —
+ingestion, schema and UI were unchanged. Parsing is pure + unit-tested
+(`funraisinPage.test.ts`).
+
+> Note: a single page fetch exposes only **cumulative** totals, so per-member
+> `todayPushUps` is recorded as 0 and "today" figures are derived from snapshot
+> diffs over time.
+
+The sections below capture the original investigation for context.
+
+---
+
 ## 1. Summary
 
 The Push-Up Challenge website is **built on the [Funraisin](https://www.funraisin.co/)
