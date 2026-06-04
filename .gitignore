@@ -1,0 +1,41 @@
+# Dependencies
+node_modules
+functions/node_modules
+
+# Build output
+dist
+dist-ssr
+functions/lib
+*.local
+
+# Test / coverage
+coverage
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Firebase
+.firebase
+.firebaserc.local
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Secrets / env
+.env
+.env.*
+!.env.example
+serviceAccount*.json

@@ -1,0 +1,34 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "participantSnapshots",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "participantId", "order": "ASCENDING" },
+        { "fieldPath": "capturedAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "participantSnapshots",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "dayKey", "order": "ASCENDING" },
+        { "fieldPath": "capturedAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "teamSnapshots",
+      "queryScope": "COLLECTION",
+      "fields": [{ "fieldPath": "capturedAt", "order": "ASCENDING" }]
+    },
+    {
+      "collectionGroup": "participants",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "active", "order": "ASCENDING" },
+        { "fieldPath": "totalPushUps", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

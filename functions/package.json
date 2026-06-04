@@ -1,0 +1,36 @@
+{
+  "name": "pushup-challenge-functions",
+  "version": "1.0.0",
+  "description": "Firebase Functions for collecting Push-Up Challenge data.",
+  "type": "module",
+  "main": "lib/index.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "serve": "npm run build && firebase emulators:start --only functions,firestore",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0",
+    "firebase-admin": "^13.1.0",
+    "firebase-functions": "^6.3.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^8.57.1",
+    "@types/node": "^22.13.1",
+    "@typescript-eslint/eslint-plugin": "^8.23.0",
+    "@typescript-eslint/parser": "^8.23.0",
+    "eslint": "^8.57.1",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  },
+  "private": true
+}

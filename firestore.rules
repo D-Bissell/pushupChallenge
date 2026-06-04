@@ -1,0 +1,64 @@
+rules_version = '2';
+
+// Push-Up Challenge Dashboard — Firestore security rules.
+//
+// Posture (Phase 1): the dashboard is public and read-only. All WRITES are
+// performed exclusively by Firebase Functions using the Admin SDK, which
+// BYPASSES these rules. Therefore clients are granted read-only access to the
+// public collections and denied all writes.
+//
+// Designed so authentication can be layered on later without restructuring:
+// swap `allow read: if true;` for `allow read: if isSignedIn();` (or a custom
+// claim check) on the collections that should become private.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- helpers (ready for a future auth phase) ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    // function isAdmin() {
+    //   return isSignedIn() && request.auth.token.admin == true;
+    // }
+
+    // Public, read-only dashboard data.
+    match /teams/{teamId} {
+      allow read: if true;
+      allow write: if false; // Admin SDK only.
+
+      match /teamSnapshots/{snapshotId} {
+        allow read: if true;
+        allow write: if false;
+      }
+      match /participants/{participantId} {
+        allow read: if true;
+        allow write: if false;
+      }
+      match /participantSnapshots/{snapshotId} {
+        allow read: if true;
+        allow write: if false;
+      }
+      match /fundraisingSnapshots/{snapshotId} {
+        allow read: if true;
+        allow write: if false;
+      }
+    }
+
+    // Operational metadata — readable for a status indicator, never writable by clients.
+    match /syncRuns/{runId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Server-only configuration. Not exposed to clients at all.
+    match /config/{document=**} {
+      allow read, write: if false;
+    }
+
+    // Default deny everything else.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
