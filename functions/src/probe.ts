@@ -1,102 +1,111 @@
 /**
- * API discovery probe v2.
+ * API discovery probe v3.
  *
- * v1 established: the CRM API needs auth, the public JSON endpoints reject the
- * slug ("access denied"), and the team page is server-rendered HTML containing
- * the data (markers team_id / pushups / leaderboard present).
+ * v2 revealed: numeric team id = 115773 (from a /team/{id} QR URL), members are
+ * embedded in the page as JSON (fields: name, m_username, member_id, total_steps
+ * = push-ups, m_raised = $ raised, m_target), and the leaderboard endpoint
+ * returns 200 for a numeric id (403 only for the slug).
  *
- * v2 goals:
- *   1. Pull the numeric team_id / page_id out of the page HTML.
- *   2. Retry the public JSON endpoints using the numeric id.
- *   3. Dump HTML context around key markers so we can design a scraper if the
- *      JSON route stays closed.
+ * v3 confirms the cleanest source: (a) does the leaderboard JSON API work with
+ * the real id? (b) what exactly is the embedded members array + team totals?
  */
 const BASE = 'https://www.thepushupchallenge.com.au';
 const SLUG = process.env.PROBE_SLUG || 'a23';
-const BROWSER_UA =
+const UA =
   'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
-function contexts(html: string, needle: string, span = 220, max = 4): string[] {
+async function getText(url: string) {
+  const res = await fetch(url, { headers: { 'User-Agent': UA, Accept: '*/*' } });
+  return { status: res.status, ct: res.headers.get('content-type') ?? '', body: await res.text() };
+}
+
+/** Extract a balanced [...] array starting at the '[' before the first needle. */
+function extractArray(html: string, needle: string): string | null {
+  const at = html.indexOf(needle);
+  if (at === -1) return null;
+  const start = html.lastIndexOf('[', at);
+  if (start === -1) return null;
+  let depth = 0;
+  for (let i = start; i < html.length; i++) {
+    if (html[i] === '[') depth++;
+    else if (html[i] === ']') {
+      depth--;
+      if (depth === 0) return html.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
+function ctx(html: string, needle: string, span = 180, max = 3): string[] {
   const out: string[] = [];
   let from = 0;
   while (out.length < max) {
     const i = html.indexOf(needle, from);
     if (i === -1) break;
-    out.push(html.slice(Math.max(0, i - 60), i + span).replace(/\s+/g, ' '));
+    out.push(html.slice(Math.max(0, i - 50), i + span).replace(/\s+/g, ' '));
     from = i + needle.length;
   }
   return out;
 }
 
-function firstMatch(html: string, re: RegExp): string | null {
-  const m = html.match(re);
-  return m ? m[1] : null;
-}
-
-async function getText(url: string): Promise<{ status: number; ct: string; body: string }> {
-  const res = await fetch(url, {
-    headers: { 'User-Agent': BROWSER_UA, Accept: 'application/json, text/html, */*' },
-  });
-  return { status: res.status, ct: res.headers.get('content-type') ?? '', body: await res.text() };
-}
-
 async function main(): Promise<void> {
   const page = await getText(`${BASE}/fundraisers/${SLUG}`);
-  console.log(`PAGE status=${page.status} len=${page.body.length}`);
   const html = page.body;
+  console.log(`PAGE status=${page.status} len=${html.length}`);
 
-  // 1. Extract candidate numeric ids from inline JS / attributes.
-  const idPatterns: Record<string, RegExp> = {
-    'team_id=': /team_id\s*[:=]\s*['"]?(\d+)/i,
-    'page_id=': /page_id\s*[:=]\s*['"]?(\d+)/i,
-    'fundraiser_id=': /fundraiser_id\s*[:=]\s*['"]?(\d+)/i,
-    'teamId=': /teamId\s*[:=]\s*['"]?(\d+)/i,
-    'data-team-id': /data-team-id=['"](\d+)/i,
-    'data-id': /data-id=['"](\d+)/i,
-  };
-  const ids = new Set<string>();
-  for (const [label, re] of Object.entries(idPatterns)) {
-    const v = firstMatch(html, re);
-    console.log(`id ${label} -> ${v ?? '(none)'}`);
-    if (v) ids.add(v);
-  }
+  // Real numeric team id from the QR / team URLs.
+  const teamId = html.match(/\/team\/(\d+)/)?.[1] ?? null;
+  console.log('teamId from /team/<id>:', teamId);
 
-  // 2. Show context around the markers so we can see how data is embedded.
-  for (const needle of ['team_id', 'pushups', 'leaderboard', 'raised', 'goal', 'fundraiser_team']) {
-    console.log(`\n--- context "${needle}" ---`);
-    for (const c of contexts(html, needle)) console.log('  …', c);
-  }
-
-  // 3. Look for any AJAX/endpoint hints the page's JS uses.
-  const urlHints = [
-    ...new Set(html.match(/['"](\/[A-Za-z0-9_\-]+\/[A-Za-z0-9_\-\/{}.?=&]+)['"]/g) ?? []),
-  ]
-    .filter((u) => /leaderboard|fundraiser|team|api|json|ajax|donat/i.test(u))
-    .slice(0, 40);
-  console.log('\n--- candidate endpoint strings in page ---');
-  console.log(JSON.stringify(urlHints, null, 2));
-
-  // 4. Retry the JSON endpoints with each numeric id we found.
-  console.log('\n--- retry JSON endpoints with numeric ids ---');
-  for (const id of ids) {
+  // 1. Confirm the leaderboard JSON API with the real id.
+  if (teamId) {
     for (const path of [
-      `/api/fundraiser_team_leaderboard/${id}/fundraising?format=json`,
-      `/api/fundraiser_team_leaderboard/${id}/activity?format=json`,
-      `/api/fundraiser_profile/${id}?format=json`,
-      `/api/team/${id}?format=json`,
-      `/api/teampage/${id}?format=json`,
+      `/api/fundraiser_team_leaderboard/${teamId}/fundraising?format=json`,
+      `/api/fundraiser_team_leaderboard/${teamId}/activity?format=json`,
+      `/api/fundraiser_team_leaderboard/${teamId}?format=json`,
+      `/api/fundraiser_team/${teamId}?format=json`,
     ]) {
-      try {
-        const r = await getText(BASE + path);
-        console.log(`\n${path}\n  status=${r.status} ct=${r.ct} len=${r.body.length}`);
-        console.log('  body[0..500]:', JSON.stringify(r.body.slice(0, 500)));
-      } catch (e) {
-        console.log(`${path} ERROR ${e instanceof Error ? e.message : String(e)}`);
-      }
+      const r = await getText(BASE + path);
+      console.log(`\n>>> ${path}\n    status=${r.status} ct=${r.ct} len=${r.body.length}`);
+      console.log('    body[0..1400]:', JSON.stringify(r.body.slice(0, 1400)));
     }
   }
 
-  console.log('\nProbe v2 complete.');
+  // 2. The embedded members array (push-ups + raised live here).
+  const arr = extractArray(html, '"member_id"');
+  console.log('\n--- embedded members array ---');
+  if (arr) {
+    console.log('raw length:', arr.length);
+    console.log('raw[0..1600]:', arr.slice(0, 1600));
+    try {
+      const parsed = JSON.parse(arr);
+      console.log('PARSED OK, count =', parsed.length);
+      console.log('keys of [0]:', Object.keys(parsed[0] ?? {}));
+      console.log('sample[0]:', JSON.stringify(parsed[0]));
+    } catch (e) {
+      console.log('JSON.parse failed:', e instanceof Error ? e.message : String(e));
+    }
+  } else {
+    console.log('(not found)');
+  }
+
+  // 3. Team-level totals / name / rank / target context.
+  for (const needle of [
+    'total_steps',
+    'team_raised',
+    'team_total',
+    'currentTotal',
+    'pushup_target',
+    'ranked',
+    'var members',
+    'team_name',
+    'data-raised',
+  ]) {
+    console.log(`\n--- ctx "${needle}" ---`);
+    for (const c of ctx(html, needle)) console.log('  …', c);
+  }
+
+  console.log('\nProbe v3 complete.');
 }
 
 main().catch((e) => {
