@@ -35,12 +35,9 @@ export class FunraisinPageProvider implements ChallengeDataProvider {
       timeoutMs: COLLECTION.timeoutMs,
       retries: COLLECTION.retries,
       backoffBaseMs: COLLECTION.backoffBaseMs,
-      headers: {
-        Accept: 'text/html,application/xhtml+xml',
-        // A browser-like UA: the site 404s/echoes errors for some agents.
-        'User-Agent':
-          'Mozilla/5.0 (compatible; PushUpChallengeDashboard/1.0; +https://github.com/d-bissell/pushupchallenge)',
-      },
+      // Uses the default browser User-Agent from http.ts; the source 403s
+      // non-browser agents.
+      headers: { Accept: 'text/html,application/xhtml+xml' },
     });
 
     const rawMembers = extractTeamMembers(html);

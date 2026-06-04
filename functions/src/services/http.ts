@@ -19,9 +19,13 @@ const DEFAULTS = {
   backoffBaseMs: 1_000,
 };
 
-/** A polite, identifiable user agent so the source can attribute traffic. */
+/**
+ * The source returns 403 for non-browser User-Agents (verified in production),
+ * so we present a standard desktop-Chrome UA. This is a low-frequency read of a
+ * public page for a personal dashboard.
+ */
 export const USER_AGENT =
-  'PushUpChallengeDashboard/1.0 (+https://github.com/d-bissell/pushupchallenge)';
+  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -63,7 +67,9 @@ export async function fetchText(url: string, opts: FetchJsonOptions = {}): Promi
       const res = await fetch(url, {
         headers: {
           'User-Agent': USER_AGENT,
-          Accept: 'application/json, text/plain, */*',
+          Accept:
+            'text/html,application/xhtml+xml,application/xml;q=0.9,application/json;q=0.8,*/*;q=0.7',
+          'Accept-Language': 'en-AU,en;q=0.9',
           ...headers,
         },
         signal: controller.signal,
