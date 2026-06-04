@@ -1,6 +1,7 @@
 import { getFirestore, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { getApps, initializeApp } from 'firebase-admin/app';
 import type { CollectionResult, SyncRunRecord, TeamTarget } from '../types/index.js';
+import { computeTodayPushUps, type DayBaseline } from './daily.js';
 
 if (!getApps().length) initializeApp();
 
@@ -88,8 +89,21 @@ export async function persistCollection(
   });
 
   // 4. Per-participant current state + per-participant snapshot.
+  //    Read existing participant docs once so we can derive "today" push-ups
+  //    from a stored daily baseline (one collection read, no composite index).
+  const existingSnap = await team.collection('participants').get();
+  const existing = new Map(existingSnap.docs.map((d) => [d.id, d.data()]));
+
   for (const p of result.participants) {
     const pid = p.sourceId;
+    const prev = existing.get(pid);
+    const { todayPushUps, baseline } = computeTodayPushUps({
+      currentTotal: p.totalPushUps,
+      prevTotal: typeof prev?.totalPushUps === 'number' ? prev.totalPushUps : undefined,
+      prevBaseline: prev?.dayBaseline as DayBaseline | undefined,
+      dayKey,
+    });
+
     batch.set(
       team.collection('participants').doc(pid),
       {
@@ -97,12 +111,13 @@ export async function persistCollection(
         teamId: target.teamId,
         name: p.name,
         slug: p.slug ?? null,
-        todayPushUps: p.todayPushUps,
+        todayPushUps,
         totalPushUps: p.totalPushUps,
         fundraising: p.fundraising,
         rank: p.rank ?? null,
         avatarUrl: p.avatarUrl ?? null,
         active: p.active ?? true,
+        dayBaseline: baseline,
         updatedAt: capturedAt,
       },
       { merge: true }
@@ -113,7 +128,7 @@ export async function persistCollection(
       teamId: target.teamId,
       capturedAt,
       dayKey,
-      todayPushUps: p.todayPushUps,
+      todayPushUps,
       totalPushUps: p.totalPushUps,
       fundraising: p.fundraising,
       rank: p.rank ?? null,

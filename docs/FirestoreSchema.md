@@ -62,12 +62,13 @@ Current per-member state. `participantId` is the source fundraiser id.
 | `teamId`        | string         |                                       |
 | `name`          | string         |                                       |
 | `slug`          | string \| null |                                       |
-| `todayPushUps`  | number         | Push-ups today.                       |
+| `todayPushUps`  | number         | Push-ups today — **derived** (current total − daily baseline). |
 | `totalPushUps`  | number         | Push-ups all-challenge.               |
 | `fundraising`   | number         | Raised (AUD).                         |
 | `rank`          | number \| null | Within-team rank (derived if absent). |
 | `avatarUrl`     | string \| null |                                       |
 | `active`        | boolean        |                                       |
+| `dayBaseline`   | map            | `{ dayKey, totalAtStart }` — the total at the start of the campaign-local day; rolls over at the day boundary so `todayPushUps` can be computed without a historical query. |
 | `updatedAt`     | Timestamp      |                                       |
 
 ## `teams/{teamId}/participantSnapshots/{snapshotId}`
