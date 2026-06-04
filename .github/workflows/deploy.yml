@@ -57,9 +57,10 @@ jobs:
           projectId: pushup-fdef2
           channelId: live
 
-      - name: Deploy Firestore rules & indexes
-        uses: w9jds/firebase-action@v14.10.1
-        with:
-          args: deploy --only firestore --project pushup-fdef2
-        env:
-          GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      # NOTE: Firestore rules/indexes are NOT deployed here. The default
+      # service-account key lacks the Firebase Rules Admin permission, and on the
+      # free/browser setup the rules are published once via the Firestore console
+      # (Firestore Database → Rules). The canonical rules live in firestore.rules.
+      # To re-enable CI rule deploys, grant the SA roles/firebaserules.admin and
+      # add a `deploy --only firestore` step here.
+
