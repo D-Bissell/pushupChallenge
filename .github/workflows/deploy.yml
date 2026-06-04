@@ -1,34 +1,33 @@
 name: Deploy Hosting
 
-# Free-plan deploy: builds the site and deploys ONLY Firebase Hosting.
-# It deliberately does NOT deploy Functions (those require the Blaze plan).
+# Free-plan deploy: builds the site, deploys Firebase Hosting, and deploys the
+# Firestore security rules + indexes. None of this needs the Blaze plan
+# (Cloud Functions are never deployed here).
 #
-# Auth: add a repo secret FIREBASE_SERVICE_ACCOUNT containing the JSON private
-# key from Firebase console → Project settings → Service accounts →
-# "Generate new private key". See docs/Deployment.md.
+# Prerequisite: the Firestore database must already exist (create it once in the
+# console: Build → Firestore Database → Create database). The rules deploy step
+# fails if there is no database yet.
 #
-# Triggers on a manual run (Actions tab → Run workflow) and on pushes to the
-# listed branches.
+# Auth: repo secret FIREBASE_SERVICE_ACCOUNT (Firebase service-account JSON).
 
 on:
   workflow_dispatch:
   push:
     branches:
       - main
-      - claude/pushup-challenge-dashboard-L4BqE
 
 concurrency:
-  group: deploy-hosting-${{ github.ref }}
+  group: deploy-hosting
   cancel-in-progress: true
 
 jobs:
   deploy:
-    name: Build & deploy to Firebase Hosting
+    name: Build & deploy site + Firestore rules
     runs-on: ubuntu-latest
     env:
       # Optional public Firebase web config. If these secrets are absent the
-      # site builds in "demo mode" with bundled sample data — which is exactly
-      # what we want until a data collector exists.
+      # site builds in "demo mode" with bundled sample data. Add them to flip
+      # the live site over to real Firestore data.
       VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
       VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
       VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
@@ -57,3 +56,10 @@ jobs:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           projectId: pushup-fdef2
           channelId: live
+
+      - name: Deploy Firestore rules & indexes
+        uses: w9jds/firebase-action@v14.10.1
+        with:
+          args: deploy --only firestore --project pushup-fdef2
+        env:
+          GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
