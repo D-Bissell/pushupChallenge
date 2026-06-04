@@ -1,15 +1,23 @@
-import { logger as fnLogger } from 'firebase-functions/v2';
-
 /**
- * Thin wrapper over the Functions structured logger so application code has a
- * stable, testable logging surface. In tests this can be stubbed without pulling
- * in the Functions runtime.
+ * Structured logger that works in any Node runtime — Cloud Functions, a plain
+ * Node script (the GitHub Actions collector), or tests. It emits one JSON line
+ * per entry with a Cloud Logging-friendly `severity` field, so logs stay
+ * structured whether they land in Cloud Logging or a GitHub Actions log.
  */
+type Fields = Record<string, unknown>;
+
+function emit(severity: 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR', message: string, data?: Fields) {
+  const line = JSON.stringify({ severity, message, ...(data ?? {}) });
+  if (severity === 'ERROR') console.error(line);
+  else if (severity === 'WARNING') console.warn(line);
+  else console.log(line);
+}
+
 export const logger = {
-  info: (message: string, data?: Record<string, unknown>) => fnLogger.info(message, data ?? {}),
-  warn: (message: string, data?: Record<string, unknown>) => fnLogger.warn(message, data ?? {}),
-  error: (message: string, data?: Record<string, unknown>) => fnLogger.error(message, data ?? {}),
-  debug: (message: string, data?: Record<string, unknown>) => fnLogger.debug(message, data ?? {}),
+  info: (message: string, data?: Fields) => emit('INFO', message, data),
+  warn: (message: string, data?: Fields) => emit('WARNING', message, data),
+  error: (message: string, data?: Fields) => emit('ERROR', message, data),
+  debug: (message: string, data?: Fields) => emit('DEBUG', message, data),
 };
 
 export type Logger = typeof logger;

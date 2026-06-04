@@ -1,0 +1,54 @@
+name: Collect Data
+
+# Free-plan data collector. Runs the Funraisin API collector on a schedule and
+# writes snapshots to Firestore via the Admin SDK — no Cloud Functions (Blaze)
+# required.
+#
+# NOTE: GitHub only runs `schedule` (and shows the "Run workflow" button) for
+# workflows on the DEFAULT branch. This must be on `main` to fire on a timer.
+#
+# Auth: reuses the FIREBASE_SERVICE_ACCOUNT repo secret (the Firebase service
+# account JSON). The key is written to a temp file and exposed to the Admin SDK
+# via Application Default Credentials.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Every 15 minutes (GitHub's scheduler is best-effort and may run late).
+    - cron: '*/15 * * * *'
+
+concurrency:
+  group: collect
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    name: Collect Push-Up Challenge data
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+
+      - name: Install & build collector
+        working-directory: functions
+        run: |
+          npm ci
+          npm run build
+
+      - name: Write service-account key
+        run: printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/sa.json"
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Run collector
+        working-directory: functions
+        run: node lib/collect.js
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
+          GOOGLE_CLOUD_PROJECT: pushup-fdef2
+          GCLOUD_PROJECT: pushup-fdef2
