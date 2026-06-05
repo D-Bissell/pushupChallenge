@@ -37,3 +37,13 @@ export function dayLabel(value: string | Date): string {
   if (Number.isNaN(d.getTime())) return String(value);
   return d.toLocaleDateString('en-AU', { month: 'short', day: 'numeric' });
 }
+
+/** Short hour label for an intraday axis, e.g. "6am", "12pm", "9pm". */
+export function hourLabel(value: number | Date): string {
+  const d = typeof value === 'number' ? new Date(value) : value;
+  if (Number.isNaN(d.getTime())) return String(value);
+  return d
+    .toLocaleTimeString('en-AU', { hour: 'numeric', hour12: true })
+    .replace(/\s/g, '')
+    .toLowerCase();
+}
