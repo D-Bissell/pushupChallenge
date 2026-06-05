@@ -13,9 +13,20 @@ describe('dailyTargetFor', () => {
     expect(dailyTargetFor('2026-06-14')).toBe(0); // Day 12
   });
 
-  it('returns 0 for days not yet in the schedule', () => {
-    expect(dailyTargetFor('2026-06-16')).toBe(0); // Day 14 (pending)
-    expect(dailyTargetFor('2026-07-01')).toBe(0); // outside challenge
+  it('returns 0 for days outside the challenge', () => {
+    expect(dailyTargetFor('2026-06-02')).toBe(0); // before Day 1
+    expect(dailyTargetFor('2026-07-01')).toBe(0); // after the challenge
+  });
+});
+
+describe('DAILY_TARGETS schedule integrity', () => {
+  it('covers all 24 challenge days', () => {
+    expect(Object.keys(DAILY_TARGETS)).toHaveLength(24);
+  });
+
+  it('sums to the campaign total of 3307', () => {
+    const total = Object.values(DAILY_TARGETS).reduce((a, b) => a + b, 0);
+    expect(total).toBe(3307);
   });
 });
 

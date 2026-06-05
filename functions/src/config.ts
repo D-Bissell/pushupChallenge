@@ -33,9 +33,8 @@ export const CHALLENGE_DAYS = 24;
  * (yyyy-mm-dd). The target changes daily to reflect mental-health statistics;
  * Sundays are rest days (0). Source: the official "daily targets" schedule.
  *
- * Days 14–24 (2026-06-16 … 2026-06-26) are pending the published numbers — until
- * filled, `dailyTargetFor` returns 0 for those days and the UI shows "—" rather
- * than a wrong percentage.
+ * The full 24-day schedule sums to 3307 (the per-member challenge target shown
+ * on the source page) — see config.test.ts, which guards that total.
  */
 export const DAILY_TARGETS: Record<string, number> = {
   '2026-06-03': 100, // Day 1  · Wed
@@ -51,8 +50,8 @@ export const DAILY_TARGETS: Record<string, number> = {
   '2026-06-13': 191, // Day 11 · Sat
   '2026-06-14': 0, //   Day 12 · Sun (rest)
   '2026-06-15': 120, // Day 13 · Mon
-  // '2026-06-16': ?, // Day 14 · Tue   ← pending
-  // '2026-06-17': ?, // Day 15 · Wed   ← pending
+  '2026-06-16': 220, // Day 14 · Tue
+  '2026-06-17': 160, // Day 15 · Wed
   '2026-06-18': 190, // Day 16 · Thu
   '2026-06-19': 170, // Day 17 · Fri
   '2026-06-20': 208, // Day 18 · Sat
