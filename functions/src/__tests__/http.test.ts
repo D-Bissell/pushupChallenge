@@ -49,4 +49,17 @@ describe('fetchJson retry/timeout', () => {
     ).rejects.toThrow();
     expect(fetchMock).toHaveBeenCalledTimes(3); // initial + 2 retries
   });
+
+  it('retries a transient 403 (WAF) then succeeds', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response('blocked', { status: 403 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(fetchJson('https://x.test/api', { retries: 3, backoffBaseMs: 1 })).resolves.toEqual(
+      { ok: true }
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
 });

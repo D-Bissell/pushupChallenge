@@ -29,9 +29,17 @@ export const USER_AGENT =
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** True for transient HTTP statuses worth retrying. */
+/**
+ * True for transient HTTP statuses worth retrying.
+ *
+ * 403 is included deliberately: the source sits behind a WAF that intermittently
+ * 403s automated/datacenter traffic. These blocks are usually transient, so a
+ * backed-off retry recovers within the same run instead of failing it.
+ */
 function isRetryableStatus(status: number): boolean {
-  return status === 408 || status === 429 || status === 425 || status >= 500;
+  return (
+    status === 403 || status === 408 || status === 425 || status === 429 || status >= 500
+  );
 }
 
 export class HttpError extends Error {
@@ -66,10 +74,19 @@ export async function fetchText(url: string, opts: FetchJsonOptions = {}): Promi
     try {
       const res = await fetch(url, {
         headers: {
+          // Present as a real browser navigation — the source's WAF 403s
+          // requests that don't look like one.
           'User-Agent': USER_AGENT,
           Accept:
-            'text/html,application/xhtml+xml,application/xml;q=0.9,application/json;q=0.8,*/*;q=0.7',
+            'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
           'Accept-Language': 'en-AU,en;q=0.9',
+          'Upgrade-Insecure-Requests': '1',
+          'Sec-Fetch-Dest': 'document',
+          'Sec-Fetch-Mode': 'navigate',
+          'Sec-Fetch-Site': 'none',
+          'Sec-Fetch-User': '?1',
+          'Cache-Control': 'no-cache',
+          Pragma: 'no-cache',
           ...headers,
         },
         signal: controller.signal,
@@ -90,7 +107,8 @@ export async function fetchText(url: string, opts: FetchJsonOptions = {}): Promi
 
       if (isLastAttempt || nonRetryable) break;
 
-      const delay = backoffBaseMs * 2 ** attempt;
+      // Exponential backoff with jitter (avoids hammering the WAF in lock-step).
+      const delay = backoffBaseMs * 2 ** attempt + Math.floor(Math.random() * backoffBaseMs);
       logger.warn('HTTP attempt failed, backing off', {
         url,
         attempt: attempt + 1,

@@ -74,7 +74,9 @@ export const CHALLENGE_TOTAL_TARGET = Object.values(DAILY_TARGETS).reduce((a, b)
 /** Provider behaviour. */
 export const COLLECTION = {
   timeoutMs: 15_000,
-  retries: 3,
+  // The source WAF intermittently 403s; with 403 now retryable, a few backed-off
+  // attempts (≈1+2+4+8s) clear most transient blocks within a single run.
+  retries: 4,
   backoffBaseMs: 1_000,
   /** Max participants to request per page from the source. */
   pageSize: 50,
