@@ -1,23 +1,31 @@
 name: Collect Data
 
-# Free-plan data collector. Runs the Funraisin API collector on a schedule and
-# writes snapshots to Firestore via the Admin SDK — no Cloud Functions (Blaze)
-# required.
+# Free-plan data collector. A single run *loops*, collecting every 5 minutes for
+# ~55 minutes, then exits; an hourly cron starts a fresh looping run each hour.
+# This yields a steady ~5-minute cadence without relying on a */5 cron, which
+# GitHub's scheduler throttles heavily (those runs land hours apart).
 #
-# NOTE: GitHub only runs `schedule` (and shows the "Run workflow" button) for
-# workflows on the DEFAULT branch. This must be on `main` to fire on a timer.
+# REQUIRES A PUBLIC REPO: Actions minutes are then free/unlimited. A continuous
+# loop would blow a private repo's 2,000 free minutes/month.
 #
-# Auth: reuses the FIREBASE_SERVICE_ACCOUNT repo secret (the Firebase service
-# account JSON). The key is written to a temp file and exposed to the Admin SDK
-# via Application Default Credentials.
+# Failure handling fits the polling model: a single failed poll (the source's
+# WAF intermittently 403s datacenter IPs) is logged and skipped, and the loop
+# carries on to the next tick. The run only fails if EVERY poll in the window
+# failed — that signals a real, persistent problem (e.g. bad credentials), not
+# the usual transient block.
+#
+# NOTE: GitHub only runs `schedule` for workflows on the DEFAULT branch, so this
+# must live on `main`. Auth reuses the FIREBASE_SERVICE_ACCOUNT repo secret.
 
 on:
   workflow_dispatch:
   schedule:
-    # Every 15 minutes (GitHub's scheduler is best-effort and may run late).
-    - cron: '*/5 * * * *'
+    # Hourly. Best-effort and may start a few minutes late, but honored far more
+    # reliably than a 5-minute cron. The in-run loop provides the 5-min cadence.
+    - cron: '0 * * * *'
 
 concurrency:
+  # Never run two looping collectors at once; let the in-flight one finish.
   group: collect
   cancel-in-progress: false
 
@@ -25,6 +33,7 @@ jobs:
   collect:
     name: Collect Push-Up Challenge data
     runs-on: ubuntu-latest
+    timeout-minutes: 70
     steps:
       - uses: actions/checkout@v4
 
@@ -45,10 +54,38 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
-      - name: Run collector
+      - name: Collect every 5 minutes for ~55 minutes
         working-directory: functions
-        run: node lib/collect.js
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
           GOOGLE_CLOUD_PROJECT: pushup-fdef2
           GCLOUD_PROJECT: pushup-fdef2
+          INTERVAL_SECONDS: '300' # 5 minutes between polls
+          WINDOW_SECONDS: '3300' #  poll for ~55 minutes, then let the next hourly run take over
+        run: |
+          ok=0
+          tries=0
+          deadline=$((SECONDS + WINDOW_SECONDS))
+          next=$SECONDS
+          while [ $SECONDS -lt $deadline ]; do
+            tries=$((tries + 1))
+            if node lib/collect.js; then
+              ok=$((ok + 1))
+            else
+              echo "::warning::collection poll #$tries failed (likely a transient source 403); retrying next tick"
+            fi
+            # Schedule the next poll on a fixed 5-minute grid, compensating for
+            # how long the poll itself took.
+            next=$((next + INTERVAL_SECONDS))
+            wait=$((next - SECONDS))
+            if [ $SECONDS -lt $deadline ] && [ $wait -gt 0 ]; then
+              sleep $wait
+            fi
+          done
+          echo "collector loop finished: $ok/$tries successful polls"
+          # Only fail the run if nothing succeeded all window — that's a real,
+          # persistent problem rather than the source's intermittent WAF blocks.
+          if [ $ok -eq 0 ]; then
+            echo "::error::all $tries collection polls failed this window"
+            exit 1
+          fi
