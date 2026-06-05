@@ -13,7 +13,6 @@ import { axisProps, gridProps, tooltipContentStyle, hourLabel, CHART_COLORS } fr
 import { formatNumber } from '@/lib/format';
 
 const HOUR_MS = 3_600_000;
-const DAY_MS = 86_400_000;
 
 // The five theme colours, plus a few extras so every member on a typical team
 // gets a distinct line before we have to cycle.
@@ -55,16 +54,24 @@ export function TodayChart({ participants, snapshots, dayKey }: Props) {
   }
   const rows = Array.from(rowsByTime.values()).sort((a, b) => a.t - b.t);
 
-  const dayStart = new Date(`${dayKey}T00:00:00`).getTime();
+  // Anchor the axis to the viewer-local calendar day of the captures (falling
+  // back to the dayKey when there's no data yet). Deriving it from the data
+  // keeps the window correct regardless of the viewer's timezone.
+  const anchor = rows.length ? new Date(rows[0].t) : new Date(`${dayKey}T00:00:00`);
+  const y = anchor.getFullYear();
+  const mo = anchor.getMonth();
+  const d = anchor.getDate();
+  const dayStart = new Date(y, mo, d).getTime();
   const sixAm = dayStart + 6 * HOUR_MS;
-  const midnight = dayStart + DAY_MS;
+  const midnight = new Date(y, mo, d + 1).getTime();
   const earliest = rows.length ? rows[0].t : sixAm;
   const xStart = Math.min(sixAm, earliest);
 
   // Ticks every 3 hours from the start of the axis through midnight.
+  const lastHour = Math.round((midnight - dayStart) / HOUR_MS);
   const firstHour = Math.floor((xStart - dayStart) / HOUR_MS / 3) * 3;
   const ticks: number[] = [];
-  for (let h = firstHour; h <= 24; h += 3) ticks.push(dayStart + h * HOUR_MS);
+  for (let h = firstHour; h <= lastHour; h += 3) ticks.push(dayStart + h * HOUR_MS);
 
   return (
     <ResponsiveContainer width="100%" height="100%">
