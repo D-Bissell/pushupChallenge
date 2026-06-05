@@ -1,13 +1,17 @@
-import { Target, CheckCircle2, Users } from 'lucide-react';
+import { useMemo } from 'react';
+import { Target, CheckCircle2, Users, Dumbbell, Flag, LineChart } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
 import { KpiCard } from '@/components/KpiCard';
 import { Avatar } from '@/components/Avatar';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ChartCard } from '@/charts/ChartCard';
+import { TodayChart } from '@/charts/TodayChart';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useTeam, useParticipants } from '@/hooks/useChallengeData';
+import { useTeam, useParticipants, useParticipantSnapshots } from '@/hooks/useChallengeData';
 import { formatNumber, formatPercent, clampPercent } from '@/lib/format';
 import {
+  challengeProgress,
   dailyCompletionPercent,
   isRestDay,
   participantTargetPercent,
@@ -18,6 +22,7 @@ import {
 export default function TodaysChallenge() {
   const { data: team } = useTeam();
   const { data: participants = [], isLoading } = useParticipants();
+  const { data: snapshots = [] } = useParticipantSnapshots();
 
   const perTarget = team?.currentDay?.targetPerParticipant ?? 0;
   const teamTarget = team ? teamDailyTarget(team, participants) : 0;
@@ -25,6 +30,18 @@ export default function TodaysChallenge() {
   const pct = team ? dailyCompletionPercent(team, participants) : 0;
   const remaining = Math.max(0, teamTarget - completed);
   const restDay = team ? isRestDay(team) : false;
+  const challenge = team ? challengeProgress(team, participants) : null;
+
+  // The day to chart: the current challenge day, falling back to the most recent
+  // snapshot's day so the graph still renders if `currentDay` isn't published.
+  const todayKey =
+    team?.currentDay?.dayKey ??
+    [...snapshots].sort((a, b) => b.capturedAt.getTime() - a.capturedAt.getTime())[0]?.dayKey ??
+    null;
+  const todaySnapshots = useMemo(
+    () => (todayKey ? snapshots.filter((s) => s.dayKey === todayKey) : []),
+    [snapshots, todayKey]
+  );
 
   return (
     <div>
@@ -37,7 +54,7 @@ export default function TodaysChallenge() {
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           label="Target per person"
           value={restDay ? 'Rest' : perTarget > 0 ? formatNumber(perTarget) : '—'}
@@ -56,34 +73,91 @@ export default function TodaysChallenge() {
           icon={Users}
           hint="push-ups remaining"
         />
+        <KpiCard
+          label="Total push-ups"
+          value={formatNumber(team?.totalPushUps ?? 0)}
+          icon={Dumbbell}
+          hint="across the challenge"
+        />
+      </div>
+
+      <ChartCard
+        title="Push-ups today"
+        description="The whole team's push-ups across the day"
+        height={300}
+      >
+        {todaySnapshots.length ? (
+          <TodayChart snapshots={todaySnapshots} dayKey={todayKey!} />
+        ) : (
+          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+            No push-ups logged yet today.
+          </div>
+        )}
+      </ChartCard>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Target className="size-4 text-primary" /> Team progress today
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {restDay ? (
+              <p className="text-sm text-muted-foreground">
+                No target today — Sundays are rest days. 🛌
+              </p>
+            ) : (
+              <>
+                <div className="mb-2 flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    {formatNumber(completed)} / {formatNumber(teamTarget)} push-ups
+                  </span>
+                  <span className="font-semibold tabular-nums">{formatPercent(pct)}</span>
+                </div>
+                <Progress value={clampPercent(pct)} className="h-3" />
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Flag className="size-4 text-primary" /> Challenge progress
+            </CardTitle>
+            <CardDescription>
+              {challenge
+                ? `${formatNumber(team!.totalPushUps)} of ${formatNumber(challenge.target)} push-ups for the whole challenge`
+                : 'Tracking total push-ups across the challenge'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {challenge ? (
+              <>
+                <div className="mb-2 flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Completed</span>
+                  <span className="font-semibold tabular-nums">
+                    {formatPercent(challenge.percent)}
+                  </span>
+                </div>
+                <Progress value={clampPercent(challenge.percent)} indicatorClassName="bg-emerald-500" />
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {formatNumber(team?.totalPushUps ?? 0)} push-ups so far.
+              </p>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <Card className="mt-4">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Team progress today</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {restDay ? (
-            <p className="text-sm text-muted-foreground">
-              No target today — Sundays are rest days. 🛌
-            </p>
-          ) : (
-            <>
-              <div className="mb-2 flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">
-                  {formatNumber(completed)} / {formatNumber(teamTarget)} push-ups
-                </span>
-                <span className="font-semibold tabular-nums">{formatPercent(pct)}</span>
-              </div>
-              <Progress value={clampPercent(pct)} className="h-3" />
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card className="mt-4">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Per-member progress</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <LineChart className="size-4 text-primary" /> Per-member progress
+          </CardTitle>
+          <CardDescription>How much of today’s target each member has done.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {isLoading &&

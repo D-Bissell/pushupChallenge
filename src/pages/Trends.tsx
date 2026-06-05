@@ -7,15 +7,12 @@ import {
 } from '@/components/DateRangeSelector';
 import { ChartCard } from '@/charts/ChartCard';
 import { TeamTotalChart } from '@/charts/TeamTotalChart';
-import { FundraisingChart } from '@/charts/FundraisingChart';
 import { ParticipantProgressChart } from '@/charts/ParticipantProgressChart';
-import { MomentumChart } from '@/charts/MomentumChart';
 import { DailyCompletionChart, toDailyCompletion } from '@/charts/DailyCompletionChart';
 import {
   useTeam,
   useParticipants,
   useTeamSnapshots,
-  useFundraisingSnapshots,
   useParticipantSnapshots,
 } from '@/hooks/useChallengeData';
 
@@ -26,7 +23,6 @@ export default function Trends() {
   const { data: team } = useTeam();
   const { data: participants = [] } = useParticipants();
   const { data: teamSnapshots = [] } = useTeamSnapshots(range);
-  const { data: fundraisingSnapshots = [] } = useFundraisingSnapshots(range);
   const { data: participantSnapshots = [] } = useParticipantSnapshots(range);
 
   const dailyCompletion = useMemo(
@@ -52,16 +48,8 @@ export default function Trends() {
           <TeamTotalChart data={teamSnapshots} />
         </ChartCard>
 
-        <ChartCard title="Fundraising growth" description="Total raised over time">
-          <FundraisingChart data={fundraisingSnapshots} />
-        </ChartCard>
-
         <ChartCard title="Participant progress" description="Top 5 members' cumulative push-ups">
           <ParticipantProgressChart participants={participants} snapshots={participantSnapshots} />
-        </ChartCard>
-
-        <ChartCard title="Team momentum" description="Push-ups added between syncs">
-          <MomentumChart data={teamSnapshots} />
         </ChartCard>
 
         <ChartCard

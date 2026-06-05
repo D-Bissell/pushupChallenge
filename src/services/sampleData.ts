@@ -96,6 +96,36 @@ export const sampleParticipantSnapshots: ParticipantSnapshot[] = sampleParticipa
     }))
 );
 
+/**
+ * Intraday captures for the *current* challenge day, so the "Push-ups today"
+ * graph has a realistic shape. Each member's today-count ramps from 0 up to its
+ * final value across the morning (matching `now` at 8am). dayKey aligns with
+ * `sampleTeam.currentDay.dayKey` so the dashboard picks them up as "today".
+ */
+const TODAY_KEY = '2026-06-12';
+const TODAY_FRACTIONS: Array<[string, number]> = [
+  ['2026-06-12T06:00:00+10:00', 0.15],
+  ['2026-06-12T06:30:00+10:00', 0.35],
+  ['2026-06-12T07:00:00+10:00', 0.6],
+  ['2026-06-12T07:30:00+10:00', 0.82],
+  ['2026-06-12T08:00:00+10:00', 1],
+];
+
+sampleParticipantSnapshots.push(
+  ...sampleParticipants.flatMap((part) =>
+    TODAY_FRACTIONS.map(([iso, f]) => ({
+      participantId: part.participantId,
+      capturedAt: new Date(iso),
+      dayKey: TODAY_KEY,
+      todayPushUps: Math.round(part.todayPushUps * f),
+      totalPushUps:
+        part.totalPushUps - part.todayPushUps + Math.round(part.todayPushUps * f),
+      fundraising: part.fundraising,
+      rank: part.rank,
+    }))
+  )
+);
+
 export const sampleSyncRun: SyncRun = {
   teamId: 'a23',
   status: 'success',
