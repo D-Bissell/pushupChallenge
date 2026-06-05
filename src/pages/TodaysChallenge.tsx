@@ -4,6 +4,7 @@ import { KpiCard } from '@/components/KpiCard';
 import { Avatar } from '@/components/Avatar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useTeam, useParticipants } from '@/hooks/useChallengeData';
 import { formatNumber, formatPercent, clampPercent } from '@/lib/format';
 import {
@@ -16,7 +17,7 @@ import {
 
 export default function TodaysChallenge() {
   const { data: team } = useTeam();
-  const { data: participants = [] } = useParticipants();
+  const { data: participants = [], isLoading } = useParticipants();
 
   const perTarget = team?.currentDay?.targetPerParticipant ?? 0;
   const teamTarget = team ? teamDailyTarget(team, participants) : 0;
@@ -85,32 +86,35 @@ export default function TodaysChallenge() {
           <CardTitle className="text-base">Per-member progress</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {participants.length === 0 && (
+          {isLoading &&
+            Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+          {!isLoading && participants.length === 0 && (
             <p className="text-sm text-muted-foreground">No participants yet.</p>
           )}
-          {[...participants]
-            .sort((a, b) => b.todayPushUps - a.todayPushUps)
-            .map((p) => {
-              const memberPct = participantTargetPercent(p, perTarget);
-              return (
-                <div key={p.participantId}>
-                  <div className="mb-1.5 flex items-center justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <Avatar name={p.name} src={p.avatarUrl} />
-                      <span className="truncate text-sm font-medium">{p.name}</span>
+          {!isLoading &&
+            [...participants]
+              .sort((a, b) => b.todayPushUps - a.todayPushUps)
+              .map((p) => {
+                const memberPct = participantTargetPercent(p, perTarget);
+                return (
+                  <div key={p.participantId}>
+                    <div className="mb-1.5 flex items-center justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <Avatar name={p.name} src={p.avatarUrl} />
+                        <span className="truncate text-sm font-medium">{p.name}</span>
+                      </div>
+                      <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
+                        {formatNumber(p.todayPushUps)}
+                        {perTarget > 0 && ` · ${formatPercent(memberPct)}`}
+                      </span>
                     </div>
-                    <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
-                      {formatNumber(p.todayPushUps)}
-                      {perTarget > 0 && ` · ${formatPercent(memberPct)}`}
-                    </span>
+                    <Progress
+                      value={clampPercent(memberPct)}
+                      indicatorClassName={memberPct >= 100 ? 'bg-emerald-500' : undefined}
+                    />
                   </div>
-                  <Progress
-                    value={clampPercent(memberPct)}
-                    indicatorClassName={memberPct >= 100 ? 'bg-emerald-500' : undefined}
-                  />
-                </div>
-              );
-            })}
+                );
+              })}
         </CardContent>
       </Card>
     </div>

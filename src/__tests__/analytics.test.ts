@@ -4,6 +4,7 @@ import {
   teamTodayCompleted,
   dailyCompletionPercent,
   participantTargetPercent,
+  challengeProgress,
   isRestDay,
   topBy,
   biggestMover,
@@ -34,6 +35,22 @@ describe('team daily metrics', () => {
   it('returns 0 completion when no target', () => {
     const noTarget = { ...sampleTeam, currentDay: null };
     expect(dailyCompletionPercent(noTarget, sampleParticipants)).toBe(0);
+  });
+});
+
+describe('challengeProgress', () => {
+  it('computes cumulative progress against per-person target × members', () => {
+    const result = challengeProgress(sampleTeam, sampleParticipants);
+    expect(result).not.toBeNull();
+    // 3307 target × 6 members = 19842.
+    expect(result!.target).toBe(3307 * 6);
+    expect(result!.percent).toBeCloseTo((48210 / (3307 * 6)) * 100, 5);
+  });
+
+  it('returns null when no cumulative target is available', () => {
+    expect(
+      challengeProgress({ ...sampleTeam, challengeTargetPerParticipant: null }, sampleParticipants)
+    ).toBeNull();
   });
 });
 

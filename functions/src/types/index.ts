@@ -40,6 +40,8 @@ export interface TeamData {
   fundraising: number;
   fundraisingGoal?: number;
   participantCount: number;
+  /** Cumulative per-participant push-up target for the whole challenge. */
+  challengeTargetPerParticipant?: number;
   /** Global/event rank if exposed by the source. */
   rank?: number;
 }

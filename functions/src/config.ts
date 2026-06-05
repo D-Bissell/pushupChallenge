@@ -68,6 +68,9 @@ export function dailyTargetFor(dayKey: string): number {
   return DAILY_TARGETS[dayKey] ?? 0;
 }
 
+/** Cumulative per-participant target across the whole challenge (sums to 3307). */
+export const CHALLENGE_TOTAL_TARGET = Object.values(DAILY_TARGETS).reduce((a, b) => a + b, 0);
+
 /** Provider behaviour. */
 export const COLLECTION = {
   timeoutMs: 15_000,

@@ -43,6 +43,23 @@ export function isRestDay(team: Team): boolean {
   );
 }
 
+/**
+ * Whole-challenge progress: team push-ups completed against the cumulative
+ * target (per-participant challenge target × active members). Null when the
+ * cumulative target isn't available yet.
+ */
+export function challengeProgress(
+  team: Team,
+  participants: Participant[]
+): { target: number; percent: number } | null {
+  const per = team.challengeTargetPerParticipant;
+  if (!per) return null;
+  const active = participants.filter((p) => p.active).length || team.participantCount || 0;
+  const target = per * active;
+  if (target <= 0) return null;
+  return { target, percent: (team.totalPushUps / target) * 100 };
+}
+
 /** Today's completion percentage for the team against its daily target. */
 export function dailyCompletionPercent(team: Team, participants: Participant[]): number {
   const target = teamDailyTarget(team, participants);

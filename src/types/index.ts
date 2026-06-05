@@ -12,6 +12,8 @@ export interface Team {
   fundraising: number;
   fundraisingGoal: number | null;
   participantCount: number;
+  /** Cumulative per-participant push-up target for the whole challenge. */
+  challengeTargetPerParticipant: number | null;
   rank: number | null;
   currentDay: ChallengeDay | null;
   updatedAt: Date | null;

@@ -72,6 +72,7 @@ function mapTeam(id: string, d: DocumentData): Team {
     fundraising: d.fundraising ?? 0,
     fundraisingGoal: d.fundraisingGoal ?? null,
     participantCount: d.participantCount ?? 0,
+    challengeTargetPerParticipant: d.challengeTargetPerParticipant ?? null,
     rank: d.rank ?? null,
     currentDay: d.currentDay
       ? {

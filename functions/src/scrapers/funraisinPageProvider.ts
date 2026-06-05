@@ -1,7 +1,12 @@
 import { ChallengeDataProvider, ProviderError } from './provider.js';
 import type { CollectionResult, TeamTarget } from '../types/index.js';
 import { fetchText } from '../services/http.js';
-import { COLLECTION, CAMPAIGN_TIMEZONE, dailyTargetFor } from '../config.js';
+import {
+  COLLECTION,
+  CAMPAIGN_TIMEZONE,
+  dailyTargetFor,
+  CHALLENGE_TOTAL_TARGET,
+} from '../config.js';
 import { dayKeyInTimeZone, challengeDayNumber } from '../services/dates.js';
 import {
   extractTeamMembers,
@@ -60,6 +65,7 @@ export class FunraisinPageProvider implements ChallengeDataProvider {
         totalPushUps,
         fundraising,
         participantCount: participants.length,
+        challengeTargetPerParticipant: CHALLENGE_TOTAL_TARGET,
         rank: extractTeamRank(html) ?? undefined,
       },
       participants,

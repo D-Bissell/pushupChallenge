@@ -1,4 +1,4 @@
-import { Dumbbell, DollarSign, Trophy, Users, Clock, Target } from 'lucide-react';
+import { Dumbbell, DollarSign, Trophy, Users, Clock, Target, Flag } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
 import { KpiCard } from '@/components/KpiCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,6 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { useTeam, useParticipants } from '@/hooks/useChallengeData';
 import { formatCurrency, formatNumber, formatPercent, timeAgo, clampPercent } from '@/lib/format';
 import {
+  challengeProgress,
   dailyCompletionPercent,
   isRestDay,
   teamDailyTarget,
@@ -20,8 +21,7 @@ export default function Dashboard() {
   const todayDone = teamTodayCompleted(participants);
   const dailyPct = team ? dailyCompletionPercent(team, participants) : 0;
   const restDay = team ? isRestDay(team) : false;
-  const goalPct =
-    team && team.fundraisingGoal ? (team.fundraising / team.fundraisingGoal) * 100 : null;
+  const challenge = team ? challengeProgress(team, participants) : null;
 
   return (
     <div>
@@ -101,26 +101,37 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
-              <DollarSign className="size-4 text-primary" /> Fundraising goal
+              <Flag className="size-4 text-primary" /> Challenge progress
             </CardTitle>
             <CardDescription>
-              {goalPct !== null
-                ? `${formatCurrency(team!.fundraising)} raised of ${formatCurrency(team!.fundraisingGoal!)}`
-                : 'No fundraising goal set'}
+              {challenge
+                ? `${formatNumber(team!.totalPushUps)} of ${formatNumber(challenge.target)} push-ups for the whole challenge`
+                : 'Tracking total push-ups across the challenge'}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {goalPct !== null ? (
+            {challenge ? (
               <>
                 <div className="mb-2 flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Progress</span>
-                  <span className="font-semibold tabular-nums">{formatPercent(goalPct)}</span>
+                  <span className="text-muted-foreground">Completed</span>
+                  <span className="font-semibold tabular-nums">
+                    {formatPercent(challenge.percent)}
+                  </span>
                 </div>
-                <Progress value={clampPercent(goalPct)} indicatorClassName="bg-emerald-500" />
+                <Progress
+                  value={clampPercent(challenge.percent)}
+                  indicatorClassName="bg-emerald-500"
+                />
+                {team?.challengeTargetPerParticipant && (
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    Target {formatNumber(team.challengeTargetPerParticipant)} push-ups per person ·{' '}
+                    {team.participantCount} members
+                  </p>
+                )}
               </>
             ) : (
               <p className="text-sm text-muted-foreground">
-                {formatCurrency(team?.fundraising ?? 0)} raised so far.
+                {formatNumber(team?.totalPushUps ?? 0)} push-ups so far.
               </p>
             )}
           </CardContent>

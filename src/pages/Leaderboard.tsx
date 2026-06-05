@@ -3,6 +3,7 @@ import { Medal } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
 import { Avatar } from '@/components/Avatar';
 import { Card } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   Table,
@@ -22,7 +23,7 @@ type Metric = 'totalPushUps' | 'fundraising';
 const MEDAL_COLOR = ['text-amber-400', 'text-zinc-400', 'text-amber-700'];
 
 export default function Leaderboard() {
-  const { data: participants = [] } = useParticipants();
+  const { data: participants = [], isLoading } = useParticipants();
   const [metric, setMetric] = useState<Metric>('totalPushUps');
 
   return (
@@ -57,6 +58,7 @@ export default function Leaderboard() {
                   view === 'all' ? participants.length : Number(view)
                 )}
                 metric={metric}
+                loading={isLoading}
               />
             </Card>
           </TabsContent>
@@ -66,7 +68,15 @@ export default function Leaderboard() {
   );
 }
 
-function LeaderboardTable({ rows, metric }: { rows: ReturnType<typeof topBy>; metric: Metric }) {
+function LeaderboardTable({
+  rows,
+  metric,
+  loading,
+}: {
+  rows: ReturnType<typeof topBy>;
+  metric: Metric;
+  loading?: boolean;
+}) {
   return (
     <Table>
       <TableHeader>
@@ -78,7 +88,15 @@ function LeaderboardTable({ rows, metric }: { rows: ReturnType<typeof topBy>; me
         </TableRow>
       </TableHeader>
       <TableBody>
-        {rows.length === 0 && (
+        {loading &&
+          Array.from({ length: 5 }).map((_, i) => (
+            <TableRow key={i}>
+              <TableCell colSpan={4}>
+                <Skeleton className="h-6 w-full" />
+              </TableCell>
+            </TableRow>
+          ))}
+        {!loading && rows.length === 0 && (
           <TableRow>
             <TableCell colSpan={4} className="py-10 text-center text-muted-foreground">
               No data yet.

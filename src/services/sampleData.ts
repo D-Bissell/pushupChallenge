@@ -25,6 +25,7 @@ export const sampleTeam: Team = {
   fundraising: 3275.5,
   fundraisingGoal: 5000,
   participantCount: 6,
+  challengeTargetPerParticipant: 3307,
   rank: 14,
   currentDay: { dayKey: '2026-06-12', dayNumber: 12, targetPerParticipant: 88 },
   updatedAt: new Date(now.getTime() - 3 * 60 * 1000),

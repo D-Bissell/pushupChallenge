@@ -24,19 +24,20 @@ config/{document}        # server-only, not client-readable
 
 Current aggregate state for a team. One document per team.
 
-| Field              | Type           | Notes                                                                  |
-| ------------------ | -------------- | ---------------------------------------------------------------------- |
-| `teamId`           | string         | Internal id (we control), e.g. `a23`.                                  |
-| `slug`             | string         | Source vanity slug, e.g. `a23`.                                        |
-| `name`             | string         | Team display name.                                                     |
-| `totalPushUps`     | number         | Cumulative team push-ups.                                              |
-| `fundraising`      | number         | Total raised (AUD).                                                    |
-| `fundraisingGoal`  | number \| null | Goal if published.                                                     |
-| `participantCount` | number         | Active member count.                                                   |
-| `rank`             | number \| null | Overall rank if exposed.                                               |
-| `currentDay`       | map \| null    | `{ dayKey, dayNumber, targetPerParticipant }`.                         |
-| `source`           | map            | `{ provider, slug, resolvedId, baseUrl }` — caches slug→id resolution. |
-| `updatedAt`        | Timestamp      | Last successful write.                                                 |
+| Field                           | Type           | Notes                                                                  |
+| ------------------------------- | -------------- | ---------------------------------------------------------------------- |
+| `teamId`                        | string         | Internal id (we control), e.g. `a23`.                                  |
+| `slug`                          | string         | Source vanity slug, e.g. `a23`.                                        |
+| `name`                          | string         | Team display name.                                                     |
+| `totalPushUps`                  | number         | Cumulative team push-ups.                                              |
+| `fundraising`                   | number         | Total raised (AUD).                                                    |
+| `fundraisingGoal`               | number \| null | Goal if published.                                                     |
+| `participantCount`              | number         | Active member count.                                                   |
+| `challengeTargetPerParticipant` | number \| null | Cumulative per-person push-up target for the whole challenge (3307).   |
+| `rank`                          | number \| null | Overall rank if exposed.                                               |
+| `currentDay`                    | map \| null    | `{ dayKey, dayNumber, targetPerParticipant }`.                         |
+| `source`                        | map            | `{ provider, slug, resolvedId, baseUrl }` — caches slug→id resolution. |
+| `updatedAt`                     | Timestamp      | Last successful write.                                                 |
 
 ## `teams/{teamId}/teamSnapshots/{snapshotId}`
 

@@ -50,6 +50,7 @@ export async function persistCollection(
       fundraising: result.team.fundraising,
       fundraisingGoal: result.team.fundraisingGoal ?? null,
       participantCount: result.team.participantCount,
+      challengeTargetPerParticipant: result.team.challengeTargetPerParticipant ?? null,
       rank: result.team.rank ?? null,
       source: {
         provider: result.meta.provider,

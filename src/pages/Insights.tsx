@@ -2,6 +2,7 @@ import { Flame, DollarSign, TrendingUp, Target, Dumbbell, type LucideIcon } from
 import { PageHeader } from '@/components/PageHeader';
 import { Avatar } from '@/components/Avatar';
 import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useTeam, useParticipants, useParticipantSnapshots } from '@/hooks/useChallengeData';
 import { buildInsights } from '@/lib/analytics';
 
@@ -14,17 +15,24 @@ const ICONS: Record<string, LucideIcon> = {
 };
 
 export default function Insights() {
-  const { data: team } = useTeam();
-  const { data: participants = [] } = useParticipants();
+  const { data: team, isLoading: teamLoading } = useTeam();
+  const { data: participants = [], isLoading: participantsLoading } = useParticipants();
   const { data: snapshots = [] } = useParticipantSnapshots();
 
+  const loading = teamLoading || participantsLoading;
   const insights = team ? buildInsights(team, participants, snapshots) : [];
 
   return (
     <div>
       <PageHeader title="Insights" description="Auto-generated highlights from the latest data." />
 
-      {insights.length === 0 ? (
+      {loading ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-32 w-full" />
+          ))}
+        </div>
+      ) : insights.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center text-sm text-muted-foreground">
             Insights will appear once data has been collected.
