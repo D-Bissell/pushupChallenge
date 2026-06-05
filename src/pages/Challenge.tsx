@@ -3,7 +3,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { KpiCard } from '@/components/KpiCard';
 import { Avatar } from '@/components/Avatar';
 import { ChartCard } from '@/charts/ChartCard';
-import { ParticipantProgressChart } from '@/charts/ParticipantProgressChart';
+import { ChallengeChart } from '@/charts/ChallengeChart';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -62,15 +62,14 @@ export default function Challenge() {
 
       <ChartCard
         title="Push-ups over the challenge"
-        description="Each member's cumulative push-ups across the challenge"
+        description="Each member's cumulative push-ups vs the expected pace, from day 1"
         height={320}
       >
         {participants.length ? (
-          <ParticipantProgressChart
+          <ChallengeChart
             participants={participants}
             snapshots={snapshots}
-            topN={participants.length}
-            target={perTarget}
+            currentDayKey={team?.currentDay?.dayKey}
           />
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">

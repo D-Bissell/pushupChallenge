@@ -3,15 +3,15 @@ import {
   Legend,
   Line,
   LineChart,
-  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts';
 import type { Participant, ParticipantSnapshot } from '@/types';
-import { axisProps, gridProps, tooltipContentStyle, dayLabel, CHART_COLORS } from './chartTheme';
+import { axisProps, gridProps, tooltipContentStyle, dayLabel } from './chartTheme';
 import { formatCompact, formatCurrency, formatNumber } from '@/lib/format';
+import { CHART_PALETTE } from './palette';
 
 type Metric = 'totalPushUps' | 'fundraising';
 
@@ -22,22 +22,9 @@ interface Props {
   metric?: Metric;
   /** Limit lines to the top N participants by the chosen metric, for readability. */
   topN?: number;
-  /** Per-person target, drawn as a horizontal reference line when > 0. */
-  target?: number;
 }
 
-// The five theme colours, plus extras so every member on a typical team gets a
-// distinct line before we have to cycle.
-const palette = [
-  CHART_COLORS[1],
-  CHART_COLORS[2],
-  CHART_COLORS[3],
-  CHART_COLORS[4],
-  CHART_COLORS[5],
-  'hsl(280 65% 62%)',
-  'hsl(24 80% 55%)',
-  'hsl(150 55% 45%)',
-];
+const palette = CHART_PALETTE;
 
 /** Multi-line chart of each (top-N) participant's chosen metric over time. */
 export function ParticipantProgressChart({
@@ -45,7 +32,6 @@ export function ParticipantProgressChart({
   snapshots,
   metric = 'totalPushUps',
   topN = 5,
-  target = 0,
 }: Props) {
   const isMoney = metric === 'fundraising';
   const yFormat = isMoney ? (v: number) => formatCurrency(v) : (v: number) => formatCompact(v);
@@ -76,19 +62,6 @@ export function ParticipantProgressChart({
         <CartesianGrid {...gridProps} />
         <XAxis dataKey="date" tickFormatter={(v) => dayLabel(v as Date)} {...axisProps} />
         <YAxis tickFormatter={(v) => yFormat(Number(v))} width={isMoney ? 56 : 48} {...axisProps} />
-        {target > 0 && (
-          <ReferenceLine
-            y={target}
-            stroke="hsl(var(--muted-foreground))"
-            strokeDasharray="4 4"
-            label={{
-              value: `Target ${yFormat(target)}`,
-              position: 'insideTopRight',
-              fill: 'hsl(var(--muted-foreground))',
-              fontSize: 11,
-            }}
-          />
-        )}
         <Tooltip
           contentStyle={tooltipContentStyle}
           labelFormatter={(v) => dayLabel(v as Date)}
