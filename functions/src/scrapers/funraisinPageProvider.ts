@@ -1,7 +1,7 @@
 import { ChallengeDataProvider, ProviderError } from './provider.js';
 import type { CollectionResult, TeamTarget } from '../types/index.js';
 import { fetchText } from '../services/http.js';
-import { COLLECTION, CAMPAIGN_TIMEZONE } from '../config.js';
+import { COLLECTION, CAMPAIGN_TIMEZONE, dailyTargetFor } from '../config.js';
 import { dayKeyInTimeZone, challengeDayNumber } from '../services/dates.js';
 import {
   extractTeamMembers,
@@ -69,8 +69,8 @@ export class FunraisinPageProvider implements ChallengeDataProvider {
       day: {
         dayKey,
         dayNumber: challengeDayNumber(dayKey),
-        // The page exposes cumulative targets only; daily target left to config.
-        targetPerParticipant: 0,
+        // Per-participant daily target from the official schedule (0 if unknown).
+        targetPerParticipant: dailyTargetFor(dayKey),
       },
       meta: {
         provider: this.name,
