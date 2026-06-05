@@ -14,7 +14,7 @@ describe('dailyTargetFor', () => {
   });
 
   it('returns 0 for days not yet in the schedule', () => {
-    expect(dailyTargetFor('2026-06-26')).toBe(0); // Day 24 (pending)
+    expect(dailyTargetFor('2026-06-16')).toBe(0); // Day 14 (pending)
     expect(dailyTargetFor('2026-07-01')).toBe(0); // outside challenge
   });
 });
