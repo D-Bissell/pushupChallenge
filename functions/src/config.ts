@@ -53,15 +53,15 @@ export const DAILY_TARGETS: Record<string, number> = {
   '2026-06-15': 120, // Day 13 · Mon
   // '2026-06-16': ?, // Day 14 · Tue   ← pending
   // '2026-06-17': ?, // Day 15 · Wed   ← pending
-  // '2026-06-18': ?, // Day 16 · Thu   ← pending
-  // '2026-06-19': ?, // Day 17 · Fri   ← pending
-  // '2026-06-20': ?, // Day 18 · Sat   ← pending
-  // '2026-06-21': 0, // Day 19 · Sun (rest)
-  // '2026-06-22': ?, // Day 20 · Mon   ← pending
-  // '2026-06-23': ?, // Day 21 · Tue   ← pending
-  // '2026-06-24': ?, // Day 22 · Wed   ← pending
-  // '2026-06-25': ?, // Day 23 · Thu   ← pending
-  // '2026-06-26': ?, // Day 24 · Fri   ← pending
+  '2026-06-18': 190, // Day 16 · Thu
+  '2026-06-19': 170, // Day 17 · Fri
+  '2026-06-20': 208, // Day 18 · Sat
+  '2026-06-21': 0, //   Day 19 · Sun (rest)
+  '2026-06-22': 120, // Day 20 · Mon
+  '2026-06-23': 180, // Day 21 · Tue
+  '2026-06-24': 229, // Day 22 · Wed
+  '2026-06-25': 160, // Day 23 · Thu
+  '2026-06-26': 150, // Day 24 · Fri
 };
 
 /** Per-participant push-up target for a given campaign-local day (0 if unknown). */
