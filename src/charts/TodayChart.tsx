@@ -10,23 +10,13 @@ import {
   YAxis,
 } from 'recharts';
 import type { Participant, ParticipantSnapshot } from '@/types';
-import { axisProps, gridProps, tooltipContentStyle, hourLabel, CHART_COLORS } from './chartTheme';
+import { axisProps, gridProps, tooltipContentStyle, hourLabel } from './chartTheme';
 import { formatNumber } from '@/lib/format';
+import { CHART_PALETTE } from './palette';
 
 const HOUR_MS = 3_600_000;
 
-// The five theme colours, plus a few extras so every member on a typical team
-// gets a distinct line before we have to cycle.
-const palette = [
-  CHART_COLORS[1],
-  CHART_COLORS[2],
-  CHART_COLORS[3],
-  CHART_COLORS[4],
-  CHART_COLORS[5],
-  'hsl(280 65% 62%)',
-  'hsl(24 80% 55%)',
-  'hsl(150 55% 45%)',
-];
+const palette = CHART_PALETTE;
 
 interface Props {
   participants: Participant[];
