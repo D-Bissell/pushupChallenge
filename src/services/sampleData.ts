@@ -104,11 +104,11 @@ export const sampleParticipantSnapshots: ParticipantSnapshot[] = sampleParticipa
  */
 const TODAY_KEY = '2026-06-12';
 const TODAY_FRACTIONS: Array<[string, number]> = [
-  ['2026-06-12T06:00:00+10:00', 0.15],
-  ['2026-06-12T06:30:00+10:00', 0.35],
-  ['2026-06-12T07:00:00+10:00', 0.6],
-  ['2026-06-12T07:30:00+10:00', 0.82],
-  ['2026-06-12T08:00:00+10:00', 1],
+  ['2026-06-12T06:00:00Z', 0.15],
+  ['2026-06-12T06:30:00Z', 0.35],
+  ['2026-06-12T07:00:00Z', 0.6],
+  ['2026-06-12T07:30:00Z', 0.82],
+  ['2026-06-12T08:00:00Z', 1],
 ];
 
 sampleParticipantSnapshots.push(

@@ -83,11 +83,11 @@ export default function TodaysChallenge() {
 
       <ChartCard
         title="Push-ups today"
-        description="The whole team's push-ups across the day"
-        height={300}
+        description="Each member's push-ups across the day"
+        height={320}
       >
         {todaySnapshots.length ? (
-          <TodayChart snapshots={todaySnapshots} dayKey={todayKey!} />
+          <TodayChart participants={participants} snapshots={todaySnapshots} dayKey={todayKey!} />
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
             No push-ups logged yet today.
