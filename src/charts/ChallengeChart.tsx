@@ -54,6 +54,17 @@ export function ChallengeChart({ participants, snapshots, currentDayKey }: Props
     row[s.participantId] = s.totalPushUps;
     rowsByT.set(t, row);
   }
+
+  // Axis runs from day 1 to the end of the current day (or the latest data, if
+  // somehow later), so the current day is always fully shown.
+  const start = dayStartMs(CHALLENGE_START);
+  const maxDataT = snapshots.reduce((m, s) => Math.max(m, s.capturedAt.getTime()), start);
+  const end = Math.max(maxDataT, dayStartMs(latestDayKey) + DAY_MS);
+
+  // Target pace: one point per challenge day up to the current day. A stepped
+  // line holds each day's cumulative until the next day, so we add a trailing
+  // point at the axis end — otherwise the current day's segment isn't drawn and
+  // the line appears to stop right as the current day begins.
   for (const day of SORTED_DAYS) {
     if (day > latestDayKey) break;
     const t = dayStartMs(day);
@@ -61,12 +72,11 @@ export function ChallengeChart({ participants, snapshots, currentDayKey }: Props
     row[TARGET_KEY] = cumulativeTargetForDayKey(day);
     rowsByT.set(t, row);
   }
-  const rows = Array.from(rowsByT.values()).sort((a, b) => a.t - b.t);
+  const endRow = rowsByT.get(end) ?? { t: end };
+  endRow[TARGET_KEY] = cumulativeTargetForDayKey(latestDayKey);
+  rowsByT.set(end, endRow);
 
-  // Axis runs from day 1 to the latest data point (or the current day if later).
-  const start = dayStartMs(CHALLENGE_START);
-  const maxDataT = snapshots.reduce((m, s) => Math.max(m, s.capturedAt.getTime()), start);
-  const end = Math.max(maxDataT, dayStartMs(latestDayKey) + DAY_MS);
+  const rows = Array.from(rowsByT.values()).sort((a, b) => a.t - b.t);
 
   // Aim for ~8 evenly spaced day ticks across the range.
   const totalDays = Math.max(1, Math.round((end - start) / DAY_MS));
