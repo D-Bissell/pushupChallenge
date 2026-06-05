@@ -1,20 +1,35 @@
 import {
-  Area,
-  AreaChart,
   CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts';
-import type { ParticipantSnapshot } from '@/types';
+import type { Participant, ParticipantSnapshot } from '@/types';
 import { axisProps, gridProps, tooltipContentStyle, hourLabel, CHART_COLORS } from './chartTheme';
 import { formatNumber } from '@/lib/format';
 
 const HOUR_MS = 3_600_000;
 const DAY_MS = 86_400_000;
 
+// The five theme colours, plus a few extras so every member on a typical team
+// gets a distinct line before we have to cycle.
+const palette = [
+  CHART_COLORS[1],
+  CHART_COLORS[2],
+  CHART_COLORS[3],
+  CHART_COLORS[4],
+  CHART_COLORS[5],
+  'hsl(280 65% 62%)',
+  'hsl(24 80% 55%)',
+  'hsl(150 55% 45%)',
+];
+
 interface Props {
+  participants: Participant[];
   /** Participant snapshots already filtered to the day being charted. */
   snapshots: ParticipantSnapshot[];
   /** The day to chart, as a "YYYY-MM-DD" key. */
@@ -22,13 +37,23 @@ interface Props {
 }
 
 /**
- * The whole team's push-ups *for the day*, plotted across the day. Each capture
- * sums every member's running today-count, giving a live picture of the day's
- * progress. The axis runs 6am → midnight, reaching back earlier if someone
- * logged push-ups before 6am.
+ * Each member's push-ups for the day, one line per member, plotted across the
+ * day. The axis runs 6am → midnight, reaching back earlier if someone logged
+ * push-ups before 6am.
  */
-export function TodayChart({ snapshots, dayKey }: Props) {
-  const rows = toTodaySeries(snapshots);
+export function TodayChart({ participants, snapshots, dayKey }: Props) {
+  const members = [...participants].sort((a, b) => b.todayPushUps - a.todayPushUps);
+  const nameById = new Map(members.map((p) => [p.participantId, p.name]));
+
+  // Pivot snapshots into rows keyed by capture time, one column per member.
+  const rowsByTime = new Map<number, Record<string, number>>();
+  for (const s of snapshots) {
+    const t = s.capturedAt.getTime();
+    const row = rowsByTime.get(t) ?? { t };
+    row[s.participantId] = s.todayPushUps;
+    rowsByTime.set(t, row);
+  }
+  const rows = Array.from(rowsByTime.values()).sort((a, b) => a.t - b.t);
 
   const dayStart = new Date(`${dayKey}T00:00:00`).getTime();
   const sixAm = dayStart + 6 * HOUR_MS;
@@ -43,13 +68,7 @@ export function TodayChart({ snapshots, dayKey }: Props) {
 
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <AreaChart data={rows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-        <defs>
-          <linearGradient id="todayFill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={CHART_COLORS[1]} stopOpacity={0.35} />
-            <stop offset="100%" stopColor={CHART_COLORS[1]} stopOpacity={0} />
-          </linearGradient>
-        </defs>
+      <LineChart data={rows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
         <CartesianGrid {...gridProps} />
         <XAxis
           dataKey="t"
@@ -64,33 +83,21 @@ export function TodayChart({ snapshots, dayKey }: Props) {
         <Tooltip
           contentStyle={tooltipContentStyle}
           labelFormatter={(v) => hourLabel(Number(v))}
-          formatter={(v) => [formatNumber(Number(v)), 'Push-ups today']}
+          formatter={(v, key) => [formatNumber(Number(v)), nameById.get(String(key)) ?? key]}
         />
-        <Area
-          type="monotone"
-          dataKey="total"
-          stroke={CHART_COLORS[1]}
-          strokeWidth={2}
-          fill="url(#todayFill)"
-        />
-      </AreaChart>
+        <Legend formatter={(key) => nameById.get(String(key)) ?? key} />
+        {members.map((p, i) => (
+          <Line
+            key={p.participantId}
+            type="monotone"
+            dataKey={p.participantId}
+            stroke={palette[i % palette.length]}
+            strokeWidth={2}
+            dot={false}
+            connectNulls
+          />
+        ))}
+      </LineChart>
     </ResponsiveContainer>
   );
-}
-
-/**
- * Collapse per-participant snapshots into the team's running today-total at each
- * capture time. Exposed for unit testing independent of Recharts.
- */
-export function toTodaySeries(
-  snapshots: ParticipantSnapshot[]
-): Array<{ t: number; total: number }> {
-  const byTime = new Map<number, number>();
-  for (const s of snapshots) {
-    const t = s.capturedAt.getTime();
-    byTime.set(t, (byTime.get(t) ?? 0) + s.todayPushUps);
-  }
-  return Array.from(byTime.entries())
-    .map(([t, total]) => ({ t, total }))
-    .sort((a, b) => a.t - b.t);
 }
