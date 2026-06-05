@@ -177,15 +177,14 @@ export async function fetchLatestSyncRun(teamId: string): Promise<SyncRun | null
   if (isDemoMode()) return sampleSyncRun;
   const db = getDb();
   if (!db) return null;
-  const q = query(
-    collection(db, 'syncRuns'),
-    where('teamId', '==', teamId),
-    orderBy('finishedAt', 'desc'),
-    fbLimit(1)
-  );
+  // Order by a single field (auto-indexed) and filter by team client-side, so
+  // this needs no composite index — important because Firestore indexes are not
+  // auto-deployed on the free/browser setup.
+  const q = query(collection(db, 'syncRuns'), orderBy('finishedAt', 'desc'), fbLimit(25));
   const snap = await getDocs(q);
-  if (snap.empty) return null;
-  const d = snap.docs[0].data();
+  const match = snap.docs.find((doc) => doc.data().teamId === teamId);
+  if (!match) return null;
+  const d = match.data();
   return {
     teamId: d.teamId,
     status: d.status,

@@ -12,11 +12,11 @@ The initial plan assumed Funraisin's public JSON API. **Live probing from GitHub
 Actions** (the build sandbox can't reach the host) disproved that for anonymous
 access:
 
-| Endpoint | Result |
-| -------- | ------ |
-| `/api/teams/*`, `/api/topfundraisers/*` | `200` `"Incorrect username or password"` — CRM API, needs HTTP Basic auth. |
+| Endpoint                                                                    | Result                                                                                                   |
+| --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `/api/teams/*`, `/api/topfundraisers/*`                                     | `200` `"Incorrect username or password"` — CRM API, needs HTTP Basic auth.                               |
 | `/api/fundraiser_profile/{id}`, `/api/fundraiser_team_leaderboard/{id}/...` | `403` `{"error":true,"errormessage":"access denied"}` — even with the **real numeric team id** `115773`. |
-| `/fundraisers/a23` (the page) | `200`, server-rendered HTML **containing the data**. |
+| `/fundraisers/a23` (the page)                                               | `200`, server-rendered HTML **containing the data**.                                                     |
 
 **Conclusion: there is no anonymous JSON API.** The team page, however, embeds the
 full member list as a JSON string:

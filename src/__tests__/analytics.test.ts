@@ -4,6 +4,7 @@ import {
   teamTodayCompleted,
   dailyCompletionPercent,
   participantTargetPercent,
+  isRestDay,
   topBy,
   biggestMover,
   mostImproved,
@@ -33,6 +34,22 @@ describe('team daily metrics', () => {
   it('returns 0 completion when no target', () => {
     const noTarget = { ...sampleTeam, currentDay: null };
     expect(dailyCompletionPercent(noTarget, sampleParticipants)).toBe(0);
+  });
+});
+
+describe('isRestDay', () => {
+  it('is false on a normal day with a target', () => {
+    expect(isRestDay(sampleTeam)).toBe(false);
+  });
+  it('is true when a known challenge day has a zero target', () => {
+    const rest = {
+      ...sampleTeam,
+      currentDay: { dayKey: '2026-06-07', dayNumber: 5, targetPerParticipant: 0 },
+    };
+    expect(isRestDay(rest)).toBe(true);
+  });
+  it('is false when there is no current day', () => {
+    expect(isRestDay({ ...sampleTeam, currentDay: null })).toBe(false);
   });
 });
 

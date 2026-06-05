@@ -30,6 +30,19 @@ export function participantTargetPercent(p: Participant, perTarget: number): num
   return (p.todayPushUps / perTarget) * 100;
 }
 
+/**
+ * True when today is a published rest day (a known challenge day whose
+ * per-participant target is 0). Lets the UI say "rest day" instead of showing a
+ * misleading 0% or "target not published".
+ */
+export function isRestDay(team: Team): boolean {
+  return (
+    !!team.currentDay &&
+    team.currentDay.dayNumber != null &&
+    team.currentDay.targetPerParticipant === 0
+  );
+}
+
 /** Today's completion percentage for the team against its daily target. */
 export function dailyCompletionPercent(team: Team, participants: Participant[]): number {
   const target = teamDailyTarget(team, participants);

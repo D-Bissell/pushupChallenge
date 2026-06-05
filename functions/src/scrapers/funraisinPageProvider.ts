@@ -42,10 +42,7 @@ export class FunraisinPageProvider implements ChallengeDataProvider {
 
     const rawMembers = extractTeamMembers(html);
     if (!rawMembers.length) {
-      throw new ProviderError(
-        'Could not find embedded teamMembers JSON on the page',
-        this.name
-      );
+      throw new ProviderError('Could not find embedded teamMembers JSON on the page', this.name);
     }
 
     const participants = ensureRanks(rawMembers.map((m, i) => mapPageMember(m, i)));

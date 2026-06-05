@@ -8,6 +8,7 @@ import { useTeam, useParticipants } from '@/hooks/useChallengeData';
 import { formatNumber, formatPercent, clampPercent } from '@/lib/format';
 import {
   dailyCompletionPercent,
+  isRestDay,
   participantTargetPercent,
   teamDailyTarget,
   teamTodayCompleted,
@@ -22,6 +23,7 @@ export default function TodaysChallenge() {
   const completed = teamTodayCompleted(participants);
   const pct = team ? dailyCompletionPercent(team, participants) : 0;
   const remaining = Math.max(0, teamTarget - completed);
+  const restDay = team ? isRestDay(team) : false;
 
   return (
     <div>
@@ -37,9 +39,9 @@ export default function TodaysChallenge() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <KpiCard
           label="Target per person"
-          value={perTarget > 0 ? formatNumber(perTarget) : '—'}
+          value={restDay ? 'Rest' : perTarget > 0 ? formatNumber(perTarget) : '—'}
           icon={Target}
-          hint="push-ups today"
+          hint={restDay ? 'rest day' : 'push-ups today'}
         />
         <KpiCard
           label="Completed by team"
@@ -60,13 +62,21 @@ export default function TodaysChallenge() {
           <CardTitle className="text-base">Team progress today</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="mb-2 flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">
-              {formatNumber(completed)} / {formatNumber(teamTarget)} push-ups
-            </span>
-            <span className="font-semibold tabular-nums">{formatPercent(pct)}</span>
-          </div>
-          <Progress value={clampPercent(pct)} className="h-3" />
+          {restDay ? (
+            <p className="text-sm text-muted-foreground">
+              No target today — Sundays are rest days. 🛌
+            </p>
+          ) : (
+            <>
+              <div className="mb-2 flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">
+                  {formatNumber(completed)} / {formatNumber(teamTarget)} push-ups
+                </span>
+                <span className="font-semibold tabular-nums">{formatPercent(pct)}</span>
+              </div>
+              <Progress value={clampPercent(pct)} className="h-3" />
+            </>
+          )}
         </CardContent>
       </Card>
 

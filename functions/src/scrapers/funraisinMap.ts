@@ -150,8 +150,7 @@ export function unescapeJsString(s: string): string {
 export function extractTeamMembers(html: string): Raw[] {
   // Accept single- or double-quoted assignment, with or without `var`/`let`.
   const m =
-    html.match(/teamMembers\s*=\s*'([\s\S]*?)';/) ??
-    html.match(/teamMembers\s*=\s*"([\s\S]*?)";/);
+    html.match(/teamMembers\s*=\s*'([\s\S]*?)';/) ?? html.match(/teamMembers\s*=\s*"([\s\S]*?)";/);
   if (!m) return [];
   try {
     const parsed = JSON.parse(unescapeJsString(m[1]));

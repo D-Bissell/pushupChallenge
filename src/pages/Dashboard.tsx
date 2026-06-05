@@ -5,7 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Progress } from '@/components/ui/progress';
 import { useTeam, useParticipants } from '@/hooks/useChallengeData';
 import { formatCurrency, formatNumber, formatPercent, timeAgo, clampPercent } from '@/lib/format';
-import { dailyCompletionPercent, teamDailyTarget, teamTodayCompleted } from '@/lib/analytics';
+import {
+  dailyCompletionPercent,
+  isRestDay,
+  teamDailyTarget,
+  teamTodayCompleted,
+} from '@/lib/analytics';
 
 export default function Dashboard() {
   const { data: team, isLoading } = useTeam();
@@ -14,6 +19,7 @@ export default function Dashboard() {
   const dailyTarget = team ? teamDailyTarget(team, participants) : 0;
   const todayDone = teamTodayCompleted(participants);
   const dailyPct = team ? dailyCompletionPercent(team, participants) : 0;
+  const restDay = team ? isRestDay(team) : false;
   const goalPct =
     team && team.fundraisingGoal ? (team.fundraising / team.fundraisingGoal) * 100 : null;
 
@@ -62,22 +68,32 @@ export default function Dashboard() {
               <Target className="size-4 text-primary" /> Today&apos;s progress
             </CardTitle>
             <CardDescription>
-              {dailyTarget > 0
-                ? `${formatNumber(todayDone)} of ${formatNumber(dailyTarget)} push-ups today`
-                : 'Daily target not yet published'}
+              {restDay
+                ? 'Rest day — no target today'
+                : dailyTarget > 0
+                  ? `${formatNumber(todayDone)} of ${formatNumber(dailyTarget)} push-ups today`
+                  : 'Daily target not yet published'}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="mb-2 flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Completion</span>
-              <span className="font-semibold tabular-nums">{formatPercent(dailyPct)}</span>
-            </div>
-            <Progress value={clampPercent(dailyPct)} />
-            {team?.currentDay?.dayNumber && (
-              <p className="mt-3 text-xs text-muted-foreground">
-                Day {team.currentDay.dayNumber} · target {team.currentDay.targetPerParticipant}{' '}
-                push-ups per person
+            {restDay ? (
+              <p className="text-sm text-muted-foreground">
+                Sundays are rest days — recover and come back stronger tomorrow. 🛌
               </p>
+            ) : (
+              <>
+                <div className="mb-2 flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Completion</span>
+                  <span className="font-semibold tabular-nums">{formatPercent(dailyPct)}</span>
+                </div>
+                <Progress value={clampPercent(dailyPct)} />
+                {team?.currentDay?.dayNumber && (
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    Day {team.currentDay.dayNumber} · target {team.currentDay.targetPerParticipant}{' '}
+                    push-ups per person
+                  </p>
+                )}
+              </>
             )}
           </CardContent>
         </Card>

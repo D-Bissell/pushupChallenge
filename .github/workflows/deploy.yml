@@ -63,4 +63,3 @@ jobs:
       # (Firestore Database → Rules). The canonical rules live in firestore.rules.
       # To re-enable CI rule deploys, grant the SA roles/firebaserules.admin and
       # add a `deploy --only firestore` step here.
-
