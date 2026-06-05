@@ -3,6 +3,7 @@ import {
   Legend,
   Line,
   LineChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -33,6 +34,8 @@ interface Props {
   snapshots: ParticipantSnapshot[];
   /** The day to chart, as a "YYYY-MM-DD" key. */
   dayKey: string;
+  /** Per-person daily target, drawn as a horizontal reference line when > 0. */
+  target?: number;
 }
 
 /**
@@ -40,7 +43,7 @@ interface Props {
  * day. The axis runs 6am → midnight, reaching back earlier if someone logged
  * push-ups before 6am.
  */
-export function TodayChart({ participants, snapshots, dayKey }: Props) {
+export function TodayChart({ participants, snapshots, dayKey, target = 0 }: Props) {
   const members = [...participants].sort((a, b) => b.todayPushUps - a.todayPushUps);
   const nameById = new Map(members.map((p) => [p.participantId, p.name]));
 
@@ -87,6 +90,19 @@ export function TodayChart({ participants, snapshots, dayKey }: Props) {
           {...axisProps}
         />
         <YAxis tickFormatter={(v) => formatNumber(Number(v))} width={48} {...axisProps} />
+        {target > 0 && (
+          <ReferenceLine
+            y={target}
+            stroke="hsl(var(--muted-foreground))"
+            strokeDasharray="4 4"
+            label={{
+              value: `Target ${formatNumber(target)}`,
+              position: 'insideTopRight',
+              fill: 'hsl(var(--muted-foreground))',
+              fontSize: 11,
+            }}
+          />
+        )}
         <Tooltip
           contentStyle={tooltipContentStyle}
           labelFormatter={(v) => hourLabel(Number(v))}
