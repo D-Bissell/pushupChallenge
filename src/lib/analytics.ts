@@ -1,5 +1,5 @@
 /**
- * Pure analytics used by the Insights and Trends pages. Kept free of React and
+ * Pure analytics used across the challenge views and Insights. Kept free of React and
  * Firestore so they are trivially unit-testable.
  */
 import type { Participant, Team, TeamSnapshot, ParticipantSnapshot } from '@/types';
