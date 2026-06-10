@@ -6,6 +6,7 @@ functions/node_modules
 dist
 dist-ssr
 functions/lib
+*.tsbuildinfo
 *.local
 
 # Test / coverage
