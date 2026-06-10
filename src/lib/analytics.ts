@@ -3,7 +3,7 @@
  * Firestore so they are trivially unit-testable.
  */
 import type { Participant, Team, TeamSnapshot, ParticipantSnapshot } from '@/types';
-import { cumulativeTargetForDayKey } from './challenge';
+import { cumulativeTargetForDayKey, dailyTargetFor } from './challenge';
 
 export interface Insight {
   key: string;
@@ -86,6 +86,18 @@ export function expectedPerParticipantToDate(team: Team): number | null {
   return cumulativeTargetForDayKey(dayKey);
 }
 
+/**
+ * The cumulative per-participant target through *yesterday* (today's target
+ * excluded). Used for the whole-challenge "ahead/behind" view: today is still in
+ * progress, so a member shouldn't read as "behind" for work they're mid-way
+ * through. Returns 0 on day 1 (nothing was due before it).
+ */
+export function expectedPerParticipantThroughYesterday(team: Team): number | null {
+  const dayKey = team.currentDay?.dayKey;
+  if (!dayKey) return null;
+  return Math.max(0, cumulativeTargetForDayKey(dayKey) - dailyTargetFor(dayKey));
+}
+
 export interface Pace {
   /** The running target so far (expected-to-date). */
   expected: number;
@@ -114,8 +126,14 @@ function pace(actual: number, expected: number): Pace {
  * ahead of or behind where it should be right now. Null when the running target
  * isn't available (no current day, or no members).
  */
-export function teamPace(team: Team, participants: Participant[]): Pace | null {
-  const per = expectedPerParticipantToDate(team);
+export function teamPace(
+  team: Team,
+  participants: Participant[],
+  opts: { throughYesterday?: boolean } = {}
+): Pace | null {
+  const per = opts.throughYesterday
+    ? expectedPerParticipantThroughYesterday(team)
+    : expectedPerParticipantToDate(team);
   if (per == null) return null;
   const active = participants.filter((p) => p.active).length || team.participantCount || 0;
   const expected = per * active;

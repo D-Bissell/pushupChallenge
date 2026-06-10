@@ -1,42 +1,43 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Target, Dumbbell, Users, TrendingUp, ArrowRight } from 'lucide-react';
+import { Target, TrendingUp, ArrowRight } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
-import { KpiCard } from '@/components/KpiCard';
 import { ChartCard } from '@/charts/ChartCard';
 import { TodayChart } from '@/charts/TodayChart';
 import { MemberTargetList, type MemberTargetRow } from '@/components/MemberTargetList';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
 import {
   useTeam,
   useParticipants,
   useParticipantSnapshots,
 } from '@/hooks/useChallengeData';
-import { formatNumber } from '@/lib/format';
+import { formatNumber, formatPercent, clampPercent } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import {
   teamDailyTarget,
   teamTodayCompleted,
   isRestDay,
-  expectedPerParticipantToDate,
+  expectedPerParticipantThroughYesterday,
   teamPace,
 } from '@/lib/analytics';
 
 /**
- * Landing page. Answers the two questions people care about most, in order:
- *   1. How is everyone doing against *today's* target?
- *   2. How is everyone doing against the *running* (expected-to-date) target —
- *      are we ahead or behind right now?
+ * Landing page, ordered by what matters most (and stacked single-column so the
+ * order holds on mobile):
+ *   1. Today's target — the first thing you see.
+ *   2. Push-ups today (the live intra-day graph).
+ *   3. Today vs target (per-member).
+ *   4. Challenge vs the running target (per-member) — measured through
+ *      *yesterday*, since today is still in progress.
  *
  * Current totals come from the live team/participant docs; only the intra-day
- * chart reads snapshots (bounded to the last two days to spare read quota).
+ * chart reads snapshots (a tight window around the current day to spare quota).
  */
 export default function Overview() {
   const { data: team } = useTeam();
   const { data: participants = [], isLoading } = useParticipants();
-  // This page only charts *today*, so read a tight window around the current
-  // challenge day rather than the whole (ever-growing) snapshot history. Anchor
-  // it to the campaign day (with a ±1 day pad for the timezone boundary) so it
-  // works regardless of the wall clock.
+
   const dayKey = team?.currentDay?.dayKey;
   const recentRange = useMemo(() => {
     if (dayKey) {
@@ -48,18 +49,22 @@ export default function Overview() {
   const { data: snapshots = [] } = useParticipantSnapshots(recentRange);
 
   const perTarget = team?.currentDay?.targetPerParticipant ?? 0;
+  const dayNumber = team?.currentDay?.dayNumber ?? null;
   const restDay = team ? isRestDay(team) : false;
+  const memberCount = team?.participantCount ?? participants.length;
+
   const teamTarget = team ? teamDailyTarget(team, participants) : 0;
   const completedToday = teamTodayCompleted(participants);
-  const todayDelta = completedToday - teamTarget;
+  const teamPct = teamTarget > 0 ? (completedToday / teamTarget) * 100 : 0;
 
-  const expectedPer = team ? expectedPerParticipantToDate(team) : null;
-  const pace = team ? teamPace(team, participants) : null;
+  // Whole-challenge progress is measured against the target *through yesterday*.
+  const expectedYesterdayPer = team ? expectedPerParticipantThroughYesterday(team) : null;
+  const pace = team ? teamPace(team, participants, { throughYesterday: true }) : null;
 
   // The day to chart: the current challenge day, falling back to the latest
   // snapshot's day so the graph still renders if `currentDay` isn't published.
   const todayKey =
-    team?.currentDay?.dayKey ??
+    dayKey ??
     [...snapshots].sort((a, b) => b.capturedAt.getTime() - a.capturedAt.getTime())[0]?.dayKey ??
     null;
   const todaySnapshots = useMemo(
@@ -75,72 +80,42 @@ export default function Overview() {
   const challengeRows: MemberTargetRow[] = participants.map((p) => ({
     participant: p,
     value: p.totalPushUps,
-    target: expectedPer ?? 0,
+    target: expectedYesterdayPer ?? 0,
   }));
 
   return (
     <div>
       <PageHeader
         title="Overview"
-        description={
-          team?.currentDay?.dayNumber
-            ? `Day ${team.currentDay.dayNumber} of the challenge`
-            : 'Today, and the challenge so far'
-        }
+        description={dayNumber ? `Day ${dayNumber} of the challenge` : 'Today, and the challenge so far'}
       />
 
-      {/* The two "are we on track?" answers, up front. */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard
-          label="Done today"
-          value={formatNumber(completedToday)}
-          icon={Target}
-          hint={restDay ? 'rest day' : teamTarget > 0 ? `of ${formatNumber(teamTarget)} target` : undefined}
-          delta={
-            !restDay && teamTarget > 0
-              ? {
-                  value:
-                    todayDelta >= 0
-                      ? `${formatNumber(todayDelta)} ahead`
-                      : `${formatNumber(Math.abs(todayDelta))} to go`,
-                  positive: todayDelta >= 0,
-                }
-              : undefined
-          }
-        />
-        <KpiCard
-          label="Challenge so far"
-          value={formatNumber(team?.totalPushUps ?? 0)}
-          icon={TrendingUp}
-          hint={pace ? `of ${formatNumber(pace.expected)} expected by now` : 'across the challenge'}
-          delta={
-            pace
-              ? {
-                  value:
-                    pace.delta >= 0
-                      ? `${formatNumber(pace.delta)} ahead`
-                      : `${formatNumber(Math.abs(pace.delta))} behind`,
-                  positive: pace.delta >= 0,
-                }
-              : undefined
-          }
-        />
-        <KpiCard
-          label="Today's target"
-          value={restDay ? 'Rest' : perTarget > 0 ? formatNumber(perTarget) : '—'}
-          icon={Dumbbell}
-          hint={restDay ? 'Sundays are rest days' : 'push-ups per person'}
-        />
-        <KpiCard
-          label="Participants"
-          value={formatNumber(team?.participantCount ?? participants.length)}
-          icon={Users}
-          hint="on the team"
-        />
-      </div>
+      <div className="space-y-4">
+        {/* 1. Today's target — the headline. */}
+        <Card>
+          <CardContent className="flex items-center justify-between gap-4 p-6">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Today's target</p>
+              <p className="mt-1 text-4xl font-bold tracking-tight tabular-nums">
+                {restDay ? 'Rest day' : perTarget > 0 ? formatNumber(perTarget) : '—'}
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {restDay
+                  ? 'Sundays are rest days 🛌'
+                  : perTarget > 0
+                    ? 'push-ups per person'
+                    : 'target not published yet'}
+                {dayNumber ? ` · Day ${dayNumber}` : ''}
+                {memberCount ? ` · ${memberCount} members` : ''}
+              </p>
+            </div>
+            <span className="rounded-lg bg-primary/10 p-3 text-primary">
+              <Target className="size-6" />
+            </span>
+          </CardContent>
+        </Card>
 
-      {/* 1. Today vs today's target. */}
-      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {/* 2. Push-ups today (live intra-day graph). */}
         <ChartCard
           title="Push-ups today"
           description="Each member's push-ups across the day"
@@ -160,53 +135,80 @@ export default function Overview() {
           )}
         </ChartCard>
 
+        {/* 3. Today vs target (per-member). */}
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <Target className="size-4 text-primary" /> Today vs target
             </CardTitle>
             <CardDescription>
-              {restDay ? 'Rest day — no target today. 🛌' : "How much of today's target each member has done."}
+              {restDay
+                ? 'Rest day — no target today. 🛌'
+                : "How much of today's target each member has done."}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            {!restDay && teamTarget > 0 && (
+              <div>
+                <div className="mb-1.5 flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    Done today: {formatNumber(completedToday)} / {formatNumber(teamTarget)}
+                  </span>
+                  <span className="font-semibold tabular-nums">{formatPercent(teamPct)}</span>
+                </div>
+                <Progress value={clampPercent(teamPct)} className="h-2.5" />
+              </div>
+            )}
+            <MemberTargetList rows={todayRows} loading={isLoading} emptyText="No participants yet." />
+          </CardContent>
+        </Card>
+
+        {/* 4. Challenge vs the running target (through yesterday). */}
+        <Card>
+          <CardHeader className="flex flex-row items-start justify-between gap-3 pb-3">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <TrendingUp className="size-4 text-primary" /> Challenge vs running target
+              </CardTitle>
+              <CardDescription>
+                Totals vs the cumulative target through yesterday — today's still in progress
+                {expectedYesterdayPer != null ? ` (${formatNumber(expectedYesterdayPer)} per person)` : ''}.
+              </CardDescription>
+            </div>
+            <Link
+              to="/challenge"
+              className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-primary hover:underline"
+            >
+              Full trend <ArrowRight className="size-3.5" />
+            </Link>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {pace && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">
+                  Team total: {formatNumber(team!.totalPushUps)}
+                </span>
+                <span
+                  className={cn(
+                    'font-medium',
+                    pace.delta >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'
+                  )}
+                >
+                  {pace.delta >= 0
+                    ? `${formatNumber(pace.delta)} ahead`
+                    : `${formatNumber(Math.abs(pace.delta))} behind`}
+                </span>
+              </div>
+            )}
             <MemberTargetList
-              rows={todayRows}
+              rows={challengeRows}
+              showDelta
               loading={isLoading}
               emptyText="No participants yet."
             />
           </CardContent>
         </Card>
       </div>
-
-      {/* 2. Challenge so far vs the running (expected-to-date) target. */}
-      <Card className="mt-4">
-        <CardHeader className="flex flex-row items-start justify-between gap-3 pb-3">
-          <div>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <TrendingUp className="size-4 text-primary" /> Challenge vs running target
-            </CardTitle>
-            <CardDescription>
-              Each member's total vs where they should be by today
-              {expectedPer != null ? ` (${formatNumber(expectedPer)} per person)` : ''}.
-            </CardDescription>
-          </div>
-          <Link
-            to="/challenge"
-            className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-primary hover:underline"
-          >
-            Full trend <ArrowRight className="size-3.5" />
-          </Link>
-        </CardHeader>
-        <CardContent>
-          <MemberTargetList
-            rows={challengeRows}
-            showDelta
-            loading={isLoading}
-            emptyText="No participants yet."
-          />
-        </CardContent>
-      </Card>
     </div>
   );
 }

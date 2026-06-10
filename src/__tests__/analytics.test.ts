@@ -12,6 +12,7 @@ import {
   momentumSeries,
   buildInsights,
   expectedPerParticipantToDate,
+  expectedPerParticipantThroughYesterday,
   teamPace,
   participantPace,
 } from '@/lib/analytics';
@@ -118,6 +119,17 @@ describe('pace (running / expected-to-date target)', () => {
 
   it('returns null when there is no current day', () => {
     expect(expectedPerParticipantToDate({ ...sampleTeam, currentDay: null })).toBeNull();
+  });
+
+  it('excludes today from the through-yesterday target', () => {
+    // 1209 cumulative through 2026-06-12, minus that day's 167 target = 1042.
+    expect(expectedPerParticipantThroughYesterday(sampleTeam)).toBe(1042);
+  });
+
+  it('computes team pace through yesterday when requested', () => {
+    const result = teamPace(sampleTeam, sampleParticipants, { throughYesterday: true });
+    expect(result!.expected).toBe(1042 * 6);
+    expect(result!.actual).toBe(48210);
   });
 
   it('computes team pace against expected-to-date × active members', () => {
