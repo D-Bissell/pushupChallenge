@@ -1,28 +1,25 @@
 name: Collect Data
 
-# Free-plan data collector. A single run *loops*, collecting every 5 minutes for
-# ~55 minutes, then exits; an hourly cron starts a fresh looping run each hour.
-# This yields a steady ~5-minute cadence without relying on a */5 cron, which
-# GitHub's scheduler throttles heavily (those runs land hours apart).
+# SCHEDULE DISABLED — collection has moved to the Google Apps Script collector
+# (see apps-script/), which egresses from Google's network and so isn't hit by
+# the source WAF's intermittent 403s on datacenter IPs the way GitHub's Azure
+# runners were. This workflow is retained as a manual fallback only.
 #
-# REQUIRES A PUBLIC REPO: Actions minutes are then free/unlimited. A continuous
-# loop would blow a private repo's 2,000 free minutes/month.
+# The collector loops internally: a single run collects every 5 minutes for
+# ~55 minutes, then exits. Failure handling fits the polling model — a single
+# failed poll is logged and skipped; the run fails only if EVERY poll failed.
 #
-# Failure handling fits the polling model: a single failed poll (the source's
-# WAF intermittently 403s datacenter IPs) is logged and skipped, and the loop
-# carries on to the next tick. The run only fails if EVERY poll in the window
-# failed — that signals a real, persistent problem (e.g. bad credentials), not
-# the usual transient block.
-#
-# NOTE: GitHub only runs `schedule` for workflows on the DEFAULT branch, so this
-# must live on `main`. Auth reuses the FIREBASE_SERVICE_ACCOUNT repo secret.
+# To re-enable the GitHub schedule, uncomment the `schedule:` block below. Note
+# GitHub only runs `schedule` for workflows on the DEFAULT branch, and a
+# continuous loop needs a PUBLIC repo for free/unlimited Actions minutes. Auth
+# reuses the FIREBASE_SERVICE_ACCOUNT repo secret.
 
 on:
   workflow_dispatch:
-  schedule:
-    # Hourly. Best-effort and may start a few minutes late, but honored far more
-    # reliably than a 5-minute cron. The in-run loop provides the 5-min cadence.
-    - cron: '0 * * * *'
+  # schedule:
+  #   # Hourly. Best-effort and may start a few minutes late, but honored far
+  #   # more reliably than a 5-minute cron. The in-run loop gives 5-min cadence.
+  #   - cron: '0 * * * *'
 
 concurrency:
   # Never run two looping collectors at once; let the in-flight one finish.

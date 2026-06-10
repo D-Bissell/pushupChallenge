@@ -78,7 +78,10 @@ export class FunraisinPageProvider implements ChallengeDataProvider {
       meta: {
         provider: this.name,
         fetchedAt: new Date().toISOString(),
-        notes: [`Parsed ${participants.length} members from embedded page JSON (team ${sourceId})`],
+        // notes carry *problems* only — they drive ingest's "partial" status and
+        // the dashboard's "Degraded" badge. A clean primary parse adds none, so a
+        // healthy run reads as "Live"; fallback/error notes still mark it degraded.
+        notes: [],
       },
     };
   }
