@@ -138,7 +138,13 @@ export function teamPace(
   const active = participants.filter((p) => p.active).length || team.participantCount || 0;
   const expected = per * active;
   if (expected <= 0) return null;
-  return pace(team.totalPushUps, expected);
+  // Measure both sides on the same basis: through-yesterday compares the total
+  // banked at the start of today (today's reps removed) against the target
+  // through yesterday, so in-progress work today doesn't show as "ahead".
+  const actual = opts.throughYesterday
+    ? Math.max(0, team.totalPushUps - teamTodayCompleted(participants))
+    : team.totalPushUps;
+  return pace(actual, expected);
 }
 
 /** One participant's progress against their running cumulative target. */

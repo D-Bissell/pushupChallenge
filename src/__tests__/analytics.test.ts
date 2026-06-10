@@ -126,10 +126,11 @@ describe('pace (running / expected-to-date target)', () => {
     expect(expectedPerParticipantThroughYesterday(sampleTeam)).toBe(1042);
   });
 
-  it('computes team pace through yesterday when requested', () => {
+  it('computes team pace through yesterday with today removed from both sides', () => {
     const result = teamPace(sampleTeam, sampleParticipants, { throughYesterday: true });
     expect(result!.expected).toBe(1042 * 6);
-    expect(result!.actual).toBe(48210);
+    // actual = total minus today's reps (88 + 64 + 88 + 40 + 88 + 0 = 368).
+    expect(result!.actual).toBe(48210 - 368);
   });
 
   it('computes team pace against expected-to-date × active members', () => {

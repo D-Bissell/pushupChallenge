@@ -57,9 +57,12 @@ export default function Overview() {
   const completedToday = teamTodayCompleted(participants);
   const teamPct = teamTarget > 0 ? (completedToday / teamTarget) * 100 : 0;
 
-  // Whole-challenge progress is measured against the target *through yesterday*.
+  // Whole-challenge progress is measured against the target *through yesterday*,
+  // with today's reps removed from the totals too, so today (still in progress)
+  // doesn't read as ahead or behind here — it lives in "Today vs target" above.
   const expectedYesterdayPer = team ? expectedPerParticipantThroughYesterday(team) : null;
   const pace = team ? teamPace(team, participants, { throughYesterday: true }) : null;
+  const bankedTotal = Math.max(0, (team?.totalPushUps ?? 0) - completedToday);
 
   // The day to chart: the current challenge day, falling back to the latest
   // snapshot's day so the graph still renders if `currentDay` isn't published.
@@ -79,7 +82,9 @@ export default function Overview() {
   }));
   const challengeRows: MemberTargetRow[] = participants.map((p) => ({
     participant: p,
-    value: p.totalPushUps,
+    // Banked at the start of today (today's reps removed) to match the
+    // through-yesterday target.
+    value: Math.max(0, p.totalPushUps - p.todayPushUps),
     target: expectedYesterdayPer ?? 0,
   }));
 
@@ -171,8 +176,9 @@ export default function Overview() {
                 <TrendingUp className="size-4 text-primary" /> Challenge vs running target
               </CardTitle>
               <CardDescription>
-                Totals vs the cumulative target through yesterday — today's still in progress
+                Each member's total at the start of today vs the target through yesterday
                 {expectedYesterdayPer != null ? ` (${formatNumber(expectedYesterdayPer)} per person)` : ''}.
+                Today's progress is in “Today vs target” above.
               </CardDescription>
             </div>
             <Link
@@ -186,7 +192,7 @@ export default function Overview() {
             {pace && (
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">
-                  Team total: {formatNumber(team!.totalPushUps)}
+                  Through yesterday: {formatNumber(bankedTotal)}
                 </span>
                 <span
                   className={cn(
