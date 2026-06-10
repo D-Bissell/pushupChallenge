@@ -9,7 +9,7 @@
  *
  * It performs the same job as functions/src (fetch the team page, parse the
  * embedded `teamMembers` JSON, derive per-day push-ups, and write the identical
- * Firestore shape the dashboard reads) but runs on a native 5-minute time
+ * Firestore shape the dashboard reads) but runs on a native recurring time
  * trigger and authenticates to Firestore via the service-account JWT — so it
  * needs no Google Cloud OAuth consent, only the script's own permissions.
  *
@@ -19,7 +19,7 @@
  *      (the full Firebase service-account key file contents).
  *   3. Run probe() once and confirm it logs HTTP 200 (Google egress works).
  *   4. Run collect() once to confirm a full write, then run setup() to install
- *      the every-5-minutes trigger.
+ *      the recurring trigger (every TRIGGER_EVERY_MINUTES minutes).
  */
 
 // ---------------------------------------------------------------------------
@@ -48,6 +48,13 @@ var CHALLENGE_TOTAL_TARGET = Object.keys(DAILY_TARGETS).reduce(
 
 /** Fetch behaviour — matches COLLECTION in config.ts. */
 var FETCH = { timeoutMs: 15000, retries: 4, backoffBaseMs: 1000 };
+
+/**
+ * How often the time trigger runs collect(). Apps Script only allows
+ * 1, 5, 10, 15, or 30. 15 keeps Firestore writes and snapshot growth modest
+ * for the free Spark plan while staying fresh enough for the dashboard.
+ */
+var TRIGGER_EVERY_MINUTES = 15;
 
 var USER_AGENT =
   'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) ' +
@@ -94,11 +101,11 @@ function probe() {
   }
 }
 
-/** Install the every-5-minutes trigger (idempotent — clears existing first). */
+/** Install the recurring time trigger (idempotent — clears existing first). */
 function setup() {
   removeTriggers();
-  ScriptApp.newTrigger('collect').timeBased().everyMinutes(5).create();
-  Logger.log('Installed: collect() every 5 minutes.');
+  ScriptApp.newTrigger('collect').timeBased().everyMinutes(TRIGGER_EVERY_MINUTES).create();
+  Logger.log('Installed: collect() every %s minutes.', TRIGGER_EVERY_MINUTES);
 }
 
 /** Remove all triggers for this script. */
