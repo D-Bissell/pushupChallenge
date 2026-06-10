@@ -11,7 +11,7 @@ hour, so an unlucky IP loses the entire hour (observed: all 11 polls 403'd).
 
 Apps Script's `UrlFetchApp` egresses from **Google's network**, which
 `docs/DataSourceFindings.md` recorded as able to reach the host when GitHub/the
-build sandbox could not. It also has **native 5-minute time triggers** and is
+build sandbox could not. It also has **native time triggers (1–30 min)** and is
 **completely free** (no billing account / no Firebase Blaze).
 
 It writes the **identical Firestore shape** the dashboard already reads
@@ -54,8 +54,10 @@ It writes the **identical Firestore shape** the dashboard already reads
    `status=success ... participants=N`, and check Firestore (a new `syncRuns`
    doc + updated `teams/a23`).
 
-6. **Schedule it.** Run `setup` once to install the **every-5-minutes** trigger.
-   (Manage it later under the **Triggers** clock icon, or run `removeTriggers`.)
+6. **Schedule it.** Run `setup` once to install the recurring trigger (every
+   `TRIGGER_EVERY_MINUTES` minutes — default **15**). Change that constant and
+   re-run `setup` to adjust the cadence. (Manage it under the **Triggers** clock
+   icon, or run `removeTriggers`.)
 
 7. **Disable the GitHub collector** so snapshots aren't written twice: in the
    repo, comment out the `schedule:` block in `.github/workflows/collect.yml`
@@ -67,16 +69,16 @@ It writes the **identical Firestore shape** the dashboard already reads
 | ---------------- | ------------------------------------------------------------- |
 | `probe()`        | One-off egress check — confirms the source returns 200.       |
 | `collect()`      | Full collection pass (the trigger target).                    |
-| `setup()`        | Install the every-5-minutes trigger (clears existing first).  |
+| `setup()`        | Install the recurring trigger (clears existing first).        |
 | `removeTriggers()` | Remove all triggers for this project.                       |
 
 ## Notes & limits
 
 - **Quotas (free / consumer account):** `UrlFetchApp` 20,000 calls/day and
-  ~90 min of trigger runtime/day. At one short fetch every 5 min (~288/day) this
+  ~90 min of trigger runtime/day. At one short fetch every 15 min (~96/day) this
   is comfortably within limits.
 - **Cadence:** Apps Script triggers fire roughly on time, not to-the-second.
-  Expect ~5-minute spacing with minor drift.
+  Expect ~15-minute spacing with minor drift.
 - **Keeping config in sync:** `DAILY_TARGETS`, `CHALLENGE_START`,
   `TRACKED_TEAMS`, and the parsing logic are copied from `functions/src`. If you
   change them there, update `Code.gs` too. (`scripts/check-appsscript-config.mjs`

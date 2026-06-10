@@ -11,16 +11,26 @@ import { DEFAULT_TEAM_ID } from '@/services/firebase';
 import type { DateRange } from '@/types';
 
 /**
- * Data hooks. Tuned to minimise Firestore reads:
- *  - generous staleTime (the backend only writes every 5 min);
- *  - background refetch aligned to that cadence;
- *  - query keys scoped by team for future multi-team support.
+ * Data hooks. Tuned to minimise Firestore reads (the free Spark plan caps daily
+ * reads, and the time-series collections grow ~288 points/day per series):
+ *  - small, bounded queries (current team/participant state, latest sync) poll
+ *    on the 5-minute write cadence — this is what makes the dashboard feel live;
+ *  - the large, ever-growing snapshot queries are NEVER polled on an interval.
+ *    Polling them re-reads the whole range every tick and torches the read
+ *    quota; instead they refetch only when the range changes or the page
+ *    reloads. Current totals still update live via the bounded queries above.
  */
 const FIVE_MIN = 5 * 60 * 1000;
 
-const sharedOptions = {
+const liveOptions = {
   staleTime: FIVE_MIN,
   refetchInterval: FIVE_MIN,
+  refetchOnWindowFocus: false,
+};
+
+const historyOptions = {
+  staleTime: 30 * 60 * 1000,
+  refetchInterval: false as const,
   refetchOnWindowFocus: false,
 };
 
@@ -28,7 +38,7 @@ export function useTeam(teamId: string = DEFAULT_TEAM_ID) {
   return useQuery({
     queryKey: ['team', teamId],
     queryFn: () => fetchTeam(teamId),
-    ...sharedOptions,
+    ...liveOptions,
   });
 }
 
@@ -36,7 +46,7 @@ export function useParticipants(teamId: string = DEFAULT_TEAM_ID) {
   return useQuery({
     queryKey: ['participants', teamId],
     queryFn: () => fetchParticipants(teamId),
-    ...sharedOptions,
+    ...liveOptions,
   });
 }
 
@@ -44,7 +54,7 @@ export function useTeamSnapshots(range?: DateRange, teamId: string = DEFAULT_TEA
   return useQuery({
     queryKey: ['teamSnapshots', teamId, range?.from.toISOString(), range?.to.toISOString()],
     queryFn: () => fetchTeamSnapshots(teamId, range),
-    ...sharedOptions,
+    ...historyOptions,
   });
 }
 
@@ -52,7 +62,7 @@ export function useFundraisingSnapshots(range?: DateRange, teamId: string = DEFA
   return useQuery({
     queryKey: ['fundraisingSnapshots', teamId, range?.from.toISOString(), range?.to.toISOString()],
     queryFn: () => fetchFundraisingSnapshots(teamId, range),
-    ...sharedOptions,
+    ...historyOptions,
   });
 }
 
@@ -60,7 +70,7 @@ export function useParticipantSnapshots(range?: DateRange, teamId: string = DEFA
   return useQuery({
     queryKey: ['participantSnapshots', teamId, range?.from.toISOString(), range?.to.toISOString()],
     queryFn: () => fetchParticipantSnapshots(teamId, range),
-    ...sharedOptions,
+    ...historyOptions,
   });
 }
 
@@ -68,6 +78,6 @@ export function useSyncStatus(teamId: string = DEFAULT_TEAM_ID) {
   return useQuery({
     queryKey: ['syncRun', teamId],
     queryFn: () => fetchLatestSyncRun(teamId),
-    ...sharedOptions,
+    ...liveOptions,
   });
 }
