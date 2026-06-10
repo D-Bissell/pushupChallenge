@@ -22,7 +22,14 @@ import {
 export default function TodaysChallenge() {
   const { data: team } = useTeam();
   const { data: participants = [], isLoading } = useParticipants();
-  const { data: snapshots = [] } = useParticipantSnapshots();
+  // This page only charts *today*, so read just the last couple of days rather
+  // than the whole (ever-growing) snapshot history — the campaign-local day is
+  // always within this window even across the timezone boundary.
+  const recentRange = useMemo(
+    () => ({ from: new Date(Date.now() - 2 * 86_400_000), to: new Date() }),
+    []
+  );
+  const { data: snapshots = [] } = useParticipantSnapshots(recentRange);
 
   const perTarget = team?.currentDay?.targetPerParticipant ?? 0;
   const teamTarget = team ? teamDailyTarget(team, participants) : 0;
