@@ -11,6 +11,10 @@ import {
   mostImproved,
   momentumSeries,
   buildInsights,
+  expectedPerParticipantToDate,
+  expectedPerParticipantThroughYesterday,
+  teamPace,
+  participantPace,
 } from '@/lib/analytics';
 import {
   sampleTeam,
@@ -104,6 +108,53 @@ describe('biggestMover', () => {
   it('falls back to today leader when no history', () => {
     const result = biggestMover(sampleParticipants, []);
     expect(result?.participant).toBeDefined();
+  });
+});
+
+describe('pace (running / expected-to-date target)', () => {
+  // currentDay is 2026-06-12; daily targets 03–12 sum to 1209 per participant.
+  it('sums the per-participant target up to the current day', () => {
+    expect(expectedPerParticipantToDate(sampleTeam)).toBe(1209);
+  });
+
+  it('returns null when there is no current day', () => {
+    expect(expectedPerParticipantToDate({ ...sampleTeam, currentDay: null })).toBeNull();
+  });
+
+  it('excludes today from the through-yesterday target', () => {
+    // 1209 cumulative through 2026-06-12, minus that day's 167 target = 1042.
+    expect(expectedPerParticipantThroughYesterday(sampleTeam)).toBe(1042);
+  });
+
+  it('computes team pace through yesterday with today removed from both sides', () => {
+    const result = teamPace(sampleTeam, sampleParticipants, { throughYesterday: true });
+    expect(result!.expected).toBe(1042 * 6);
+    // actual = total minus today's reps (88 + 64 + 88 + 40 + 88 + 0 = 368).
+    expect(result!.actual).toBe(48210 - 368);
+  });
+
+  it('computes team pace against expected-to-date × active members', () => {
+    const result = teamPace(sampleTeam, sampleParticipants);
+    expect(result).not.toBeNull();
+    expect(result!.expected).toBe(1209 * 6);
+    expect(result!.actual).toBe(48210);
+    expect(result!.delta).toBe(48210 - 1209 * 6);
+    expect(result!.onTrack).toBe(true);
+    expect(result!.percent).toBeCloseTo((48210 / (1209 * 6)) * 100, 5);
+  });
+
+  it('returns null team pace when the running target is unavailable', () => {
+    expect(teamPace({ ...sampleTeam, currentDay: null }, sampleParticipants)).toBeNull();
+  });
+
+  it('flags a participant behind the running target', () => {
+    const p = sampleParticipants[0];
+    const behind = participantPace(p, p.totalPushUps + 100);
+    expect(behind.delta).toBe(-100);
+    expect(behind.onTrack).toBe(false);
+    const ahead = participantPace(p, p.totalPushUps - 100);
+    expect(ahead.delta).toBe(100);
+    expect(ahead.onTrack).toBe(true);
   });
 });
 

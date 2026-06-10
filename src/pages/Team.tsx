@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ArrowUpDown, ArrowUp, ArrowDown, Search } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, Search, Medal } from 'lucide-react';
 import { PageHeader } from '@/components/PageHeader';
 import { Avatar } from '@/components/Avatar';
 import { Input } from '@/components/ui/input';
@@ -24,7 +24,14 @@ type SortKey = 'rank' | 'name' | 'todayPushUps' | 'totalPushUps' | 'percent' | '
 type SortDir = 'asc' | 'desc';
 type Filter = 'all' | 'active' | 'inactive';
 
-export default function TeamMembers() {
+const MEDAL_COLOR = ['text-amber-400', 'text-zinc-400', 'text-amber-700'];
+
+/**
+ * Team roster + leaderboard in one place. The table is sortable and searchable
+ * (the "members" view) and ranks members with medals for the top three (the
+ * "leaderboard" view) — sort by any column to lead by that metric.
+ */
+export default function Team() {
   const { data: team } = useTeam();
   const { data: participants = [], isLoading } = useParticipants();
   const perTarget = team?.currentDay?.targetPerParticipant ?? 0;
@@ -72,7 +79,7 @@ export default function TeamMembers() {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortKey(key);
-      // Names default ascending; numbers default descending (most-first).
+      // Names/rank default ascending; numbers default descending (most-first).
       setSortDir(key === 'name' || key === 'rank' ? 'asc' : 'desc');
     }
   }
@@ -82,8 +89,8 @@ export default function TeamMembers() {
   return (
     <div>
       <PageHeader
-        title="Team Members"
-        description={`${participants.length} members · sort, filter and search`}
+        title="Team & Leaderboard"
+        description={`${participants.length} members · sort, filter and search the roster`}
       />
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -164,10 +171,14 @@ export default function TeamMembers() {
 
             {rows.map((p) => {
               const pct = participantTargetPercent(p, perTarget);
+              const medal = p.rank && p.rank <= 3 ? MEDAL_COLOR[p.rank - 1] : null;
               return (
                 <TableRow key={p.participantId} className={cn(!p.active && 'opacity-60')}>
                   <TableCell className="font-medium tabular-nums">
-                    {p.rank ? `#${p.rank}` : '—'}
+                    <span className="inline-flex items-center gap-1">
+                      {medal && <Medal className={cn('size-4', medal)} />}
+                      {p.rank ? `#${p.rank}` : '—'}
+                    </span>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
