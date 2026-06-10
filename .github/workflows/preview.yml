@@ -18,6 +18,13 @@ concurrency:
   group: preview-${{ github.ref }}
   cancel-in-progress: true
 
+# The hosting-deploy action creates a "Deploy Preview" check run and comments the
+# URL on the PR, so the token needs these writes (the repo default is read-only).
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
 jobs:
   preview:
     name: Build & deploy preview channel
