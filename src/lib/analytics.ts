@@ -3,6 +3,7 @@
  * Firestore so they are trivially unit-testable.
  */
 import type { Participant, Team, TeamSnapshot, ParticipantSnapshot } from '@/types';
+import { cumulativeTargetForDayKey } from './challenge';
 
 export interface Insight {
   key: string;
@@ -65,6 +66,66 @@ export function dailyCompletionPercent(team: Team, participants: Participant[]):
   const target = teamDailyTarget(team, participants);
   if (target <= 0) return 0;
   return (teamTodayCompleted(participants) / target) * 100;
+}
+
+// ---------------------------------------------------------------------------
+// Pace: progress against the *running* (expected-to-date) target.
+//
+// This is the question people care about most: not "how much of the whole
+// challenge is done" but "are we ahead of or behind where we should be right
+// now?" The running target is the cumulative sum of daily targets through today.
+// ---------------------------------------------------------------------------
+
+/**
+ * The cumulative per-participant target the team should have reached by today.
+ * Null when the current day isn't published yet.
+ */
+export function expectedPerParticipantToDate(team: Team): number | null {
+  const dayKey = team.currentDay?.dayKey;
+  if (!dayKey) return null;
+  return cumulativeTargetForDayKey(dayKey);
+}
+
+export interface Pace {
+  /** The running target so far (expected-to-date). */
+  expected: number;
+  /** Actual push-ups so far. */
+  actual: number;
+  /** actual − expected. Positive means ahead of the running target. */
+  delta: number;
+  /** actual / expected as a percentage (0 when expected is 0). */
+  percent: number;
+  /** True when at or ahead of the running target. */
+  onTrack: boolean;
+}
+
+function pace(actual: number, expected: number): Pace {
+  return {
+    expected,
+    actual,
+    delta: actual - expected,
+    percent: expected > 0 ? (actual / expected) * 100 : 0,
+    onTrack: actual >= expected,
+  };
+}
+
+/**
+ * Team progress against the running cumulative target — whether the team is
+ * ahead of or behind where it should be right now. Null when the running target
+ * isn't available (no current day, or no members).
+ */
+export function teamPace(team: Team, participants: Participant[]): Pace | null {
+  const per = expectedPerParticipantToDate(team);
+  if (per == null) return null;
+  const active = participants.filter((p) => p.active).length || team.participantCount || 0;
+  const expected = per * active;
+  if (expected <= 0) return null;
+  return pace(team.totalPushUps, expected);
+}
+
+/** One participant's progress against their running cumulative target. */
+export function participantPace(p: Participant, expectedPerParticipant: number): Pace {
+  return pace(p.totalPushUps, expectedPerParticipant);
 }
 
 /** Sort helper that ranks participants by a numeric field, descending. */

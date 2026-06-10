@@ -1,8 +1,7 @@
 import {
-  Target,
+  Home,
   TrendingUp,
   Users,
-  Trophy,
   DollarSign,
   Lightbulb,
   type LucideIcon,
@@ -15,10 +14,9 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { to: '/', label: "Today's Challenge", icon: Target },
+  { to: '/', label: 'Overview', icon: Home },
   { to: '/challenge', label: 'The Challenge', icon: TrendingUp },
-  { to: '/members', label: 'Team Members', icon: Users },
-  { to: '/leaderboard', label: 'Leaderboard', icon: Trophy },
+  { to: '/team', label: 'Team', icon: Users },
   { to: '/fundraising', label: 'Fundraising', icon: DollarSign },
   { to: '/insights', label: 'Insights', icon: Lightbulb },
 ];
