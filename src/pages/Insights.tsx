@@ -3,7 +3,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { Avatar } from '@/components/Avatar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useTeam, useParticipants, useParticipantSnapshots } from '@/hooks/useChallengeData';
+import { useTeam, useParticipants, useChallengeSeries } from '@/hooks/useChallengeData';
 import { buildInsights } from '@/lib/analytics';
 
 const ICONS: Record<string, LucideIcon> = {
@@ -17,7 +17,8 @@ const ICONS: Record<string, LucideIcon> = {
 export default function Insights() {
   const { data: team, isLoading: teamLoading } = useTeam();
   const { data: participants = [], isLoading: participantsLoading } = useParticipants();
-  const { data: snapshots = [] } = useParticipantSnapshots();
+  const { data: series } = useChallengeSeries();
+  const snapshots = series?.participantSnapshots ?? [];
 
   const loading = teamLoading || participantsLoading;
   const insights = team ? buildInsights(team, participants, snapshots) : [];

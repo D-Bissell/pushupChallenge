@@ -7,14 +7,15 @@ import { ChallengeChart } from '@/charts/ChallengeChart';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useTeam, useParticipants, useParticipantSnapshots } from '@/hooks/useChallengeData';
+import { useTeam, useParticipants, useChallengeSeries } from '@/hooks/useChallengeData';
 import { formatNumber, formatPercent, clampPercent } from '@/lib/format';
 import { challengeProgress } from '@/lib/analytics';
 
 export default function Challenge() {
   const { data: team } = useTeam();
   const { data: participants = [], isLoading } = useParticipants();
-  const { data: snapshots = [] } = useParticipantSnapshots();
+  const { data: series } = useChallengeSeries();
+  const snapshots = series?.participantSnapshots ?? [];
 
   const perTarget = team?.challengeTargetPerParticipant ?? 0;
   const challenge = team ? challengeProgress(team, participants) : null;

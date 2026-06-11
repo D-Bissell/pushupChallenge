@@ -5,6 +5,7 @@ import {
   fetchTeamSnapshots,
   fetchFundraisingSnapshots,
   fetchParticipantSnapshots,
+  fetchChallengeSeries,
   fetchLatestSyncRun,
 } from '@/services/dataService';
 import { DEFAULT_TEAM_ID } from '@/services/firebase';
@@ -70,6 +71,19 @@ export function useParticipantSnapshots(range?: DateRange, teamId: string = DEFA
   return useQuery({
     queryKey: ['participantSnapshots', teamId, range?.from.toISOString(), range?.to.toISOString()],
     queryFn: () => fetchParticipantSnapshots(teamId, range),
+    ...historyOptions,
+  });
+}
+
+/**
+ * Whole-challenge series for the long-view charts (Challenge, Insights,
+ * Fundraising-over-time). Reads ONE rollup doc, so it's cheap to load and safe
+ * to leave on the historyOptions cadence. Pages filter it client-side for ranges.
+ */
+export function useChallengeSeries(teamId: string = DEFAULT_TEAM_ID) {
+  return useQuery({
+    queryKey: ['challengeSeries', teamId],
+    queryFn: () => fetchChallengeSeries(teamId),
     ...historyOptions,
   });
 }

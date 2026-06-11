@@ -172,6 +172,85 @@ export async function fetchParticipantSnapshots(
 }
 
 // ---------------------------------------------------------------------------
+// Rollup series (whole-challenge charts)
+//
+// The collector maintains ONE compact doc (teams/{id}/rollups/series) with a
+// downsampled point per participant/team per day. The whole-challenge charts
+// read that single doc instead of the entire snapshot history — keeping reads
+// well within the free-tier quota no matter how long the challenge runs or how
+// much traffic the (public) dashboard gets.
+// ---------------------------------------------------------------------------
+export interface ChallengeSeries {
+  participantSnapshots: ParticipantSnapshot[];
+  teamSnapshots: TeamSnapshot[];
+  fundraisingSnapshots: FundraisingSnapshot[];
+}
+
+type RawPoint = {
+  participantId?: string;
+  dayKey?: string;
+  capturedAt?: string;
+  totalPushUps?: number;
+  todayPushUps?: number;
+  fundraising?: number;
+  participantCount?: number;
+  rank?: number | null;
+};
+
+function parseSeries(value: unknown): RawPoint[] {
+  if (typeof value !== 'string') return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? (parsed as RawPoint[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchChallengeSeries(teamId: string): Promise<ChallengeSeries> {
+  if (isDemoMode()) {
+    return {
+      participantSnapshots: sampleParticipantSnapshots,
+      teamSnapshots: sampleTeamSnapshots,
+      fundraisingSnapshots: sampleFundraisingSnapshots,
+    };
+  }
+  const db = getDb();
+  if (!db) return { participantSnapshots: [], teamSnapshots: [], fundraisingSnapshots: [] };
+
+  const snap = await getDoc(doc(teamRef(teamId), 'rollups', 'series'));
+  if (!snap.exists()) return { participantSnapshots: [], teamSnapshots: [], fundraisingSnapshots: [] };
+  const d = snap.data();
+  const pPts = parseSeries(d.participantSeries);
+  const tPts = parseSeries(d.teamSeries);
+
+  return {
+    participantSnapshots: pPts.map((p) => ({
+      participantId: String(p.participantId ?? ''),
+      capturedAt: toDate(p.capturedAt) ?? new Date(),
+      dayKey: p.dayKey ?? '',
+      todayPushUps: p.todayPushUps ?? 0,
+      totalPushUps: p.totalPushUps ?? 0,
+      fundraising: p.fundraising ?? 0,
+      rank: p.rank ?? null,
+    })),
+    teamSnapshots: tPts.map((t) => ({
+      capturedAt: toDate(t.capturedAt) ?? new Date(),
+      dayKey: t.dayKey ?? '',
+      totalPushUps: t.totalPushUps ?? 0,
+      fundraising: t.fundraising ?? 0,
+      participantCount: t.participantCount ?? 0,
+      rank: t.rank ?? null,
+    })),
+    fundraisingSnapshots: tPts.map((t) => ({
+      capturedAt: toDate(t.capturedAt) ?? new Date(),
+      dayKey: t.dayKey ?? '',
+      fundraising: t.fundraising ?? 0,
+    })),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Sync status
 // ---------------------------------------------------------------------------
 export async function fetchLatestSyncRun(teamId: string): Promise<SyncRun | null> {

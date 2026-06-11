@@ -14,14 +14,15 @@ import { ParticipantProgressChart } from '@/charts/ParticipantProgressChart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  useTeam,
-  useParticipants,
-  useFundraisingSnapshots,
-  useParticipantSnapshots,
-} from '@/hooks/useChallengeData';
+import { useTeam, useParticipants, useChallengeSeries } from '@/hooks/useChallengeData';
 import { topBy } from '@/lib/analytics';
 import { formatCurrency, formatPercent, clampPercent } from '@/lib/format';
+import type { DateRange } from '@/types';
+
+function inRange<T extends { capturedAt: Date }>(items: T[], range?: DateRange): T[] {
+  if (!range) return items;
+  return items.filter((i) => i.capturedAt >= range.from && i.capturedAt <= range.to);
+}
 
 export default function Fundraising() {
   const [preset, setPreset] = useState<RangePreset>('30d');
@@ -29,8 +30,16 @@ export default function Fundraising() {
 
   const { data: team, isLoading } = useTeam();
   const { data: participants = [] } = useParticipants();
-  const { data: fundraisingSnapshots = [] } = useFundraisingSnapshots(range);
-  const { data: participantSnapshots = [] } = useParticipantSnapshots(range);
+  // The whole-challenge series is one cheap doc read; filter the range here.
+  const { data: series } = useChallengeSeries();
+  const fundraisingSnapshots = useMemo(
+    () => inRange(series?.fundraisingSnapshots ?? [], range),
+    [series, range]
+  );
+  const participantSnapshots = useMemo(
+    () => inRange(series?.participantSnapshots ?? [], range),
+    [series, range]
+  );
 
   const raised = team?.fundraising ?? 0;
   const goal = team?.fundraisingGoal ?? null;
