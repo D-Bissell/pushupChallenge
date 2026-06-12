@@ -59,18 +59,31 @@ It writes the **identical Firestore shape** the dashboard already reads
    re-run `setup` to adjust the cadence. (Manage it under the **Triggers** clock
    icon, or run `removeTriggers`.)
 
-7. **Disable the GitHub collector** so snapshots aren't written twice: in the
+7. **Seed the chart rollup (one-off).** Run `backfillRollup` once to build the
+   compact `teams/<id>/rollups/series` doc from the snapshot history that already
+   exists, so the whole-challenge charts show the days already elapsed. Do this
+   after the daily read quota has reset (it reads the snapshot collections once).
+   From then on `collect()` keeps the rollup current each run.
+
+8. **Disable the GitHub collector** so snapshots aren't written twice: in the
    repo, comment out the `schedule:` block in `.github/workflows/collect.yml`
    (or disable the workflow in the Actions tab).
 
+> **Why the rollup?** The dashboard's whole-challenge charts read this single
+> doc instead of the entire `participantSnapshots` history — which otherwise
+> grows every run and blows the free Spark plan's 50k/day read quota once the
+> (public) site gets any traffic. `collect()` upserts one point per
+> participant/team per day; the doc stays small and is read once per page load.
+
 ## Functions
 
-| Function         | Purpose                                                        |
-| ---------------- | ------------------------------------------------------------- |
-| `probe()`        | One-off egress check — confirms the source returns 200.       |
-| `collect()`      | Full collection pass (the trigger target).                    |
-| `setup()`        | Install the recurring trigger (clears existing first).        |
-| `removeTriggers()` | Remove all triggers for this project.                       |
+| Function          | Purpose                                                       |
+| ----------------- | ------------------------------------------------------------ |
+| `probe()`         | One-off egress check — confirms the source returns 200.      |
+| `collect()`       | Full collection pass + rollup update (the trigger target).   |
+| `backfillRollup()`| One-off: seed the chart rollup from existing snapshots.      |
+| `setup()`         | Install the recurring trigger (clears existing first).       |
+| `removeTriggers()`| Remove all triggers for this project.                        |
 
 ## Notes & limits
 

@@ -204,6 +204,7 @@ function persistCollection_(team, result) {
   var existing = listParticipants_(team.teamId);
 
   var writes = [];
+  var todayByPid = {}; // today's push-ups per participant, for the rollup
 
   // 1. Current team state.
   writes.push(updateWrite_(teamPath, fsMap_({
@@ -260,6 +261,7 @@ function persistCollection_(team, result) {
       prev ? prev.dayBaseline : undefined,
       dayKey
     );
+    todayByPid[pid] = today.todayPushUps;
 
     writes.push(updateWrite_(teamPath + '/participants/' + pid, fsMap_({
       participantId: fsStr_(pid),
@@ -291,8 +293,80 @@ function persistCollection_(team, result) {
     })));
   });
 
+  // 5. Compact rollup series (one point per participant/team per day) in a single
+  //    doc, so the dashboard's whole-challenge charts read ONE doc instead of the
+  //    entire snapshot history — which is what blows the free-tier read quota.
+  writes.push(buildRollupWrite_(teamPath, team.teamId, result, capturedAt, dayKey, todayByPid));
+
   firestoreCommit_(writes);
   return result.participants.length;
+}
+
+/**
+ * Build the rollup-doc write for this run: read the existing series, upsert the
+ * current day's point for each participant and the team (latest wins), and
+ * return the write. Stored as JSON strings to keep encoding simple and the read
+ * cheap (one small doc).
+ */
+function buildRollupWrite_(teamPath, teamId, result, capturedAt, dayKey, todayByPid) {
+  var path = teamPath + '/rollups/series';
+  var existing = firestoreGetDoc_(path);
+  var pSeries = existing ? safeParseArray_(existing.participantSeries) : [];
+  var tSeries = existing ? safeParseArray_(existing.teamSeries) : [];
+  var iso = capturedAt.toISOString();
+
+  result.participants.forEach(function (p) {
+    var pid = p.sourceId;
+    var point = {
+      participantId: pid,
+      dayKey: dayKey,
+      capturedAt: iso,
+      totalPushUps: p.totalPushUps,
+      todayPushUps: todayByPid[pid] || 0,
+      fundraising: p.fundraising,
+      rank: p.rank != null ? p.rank : null,
+    };
+    var idx = findDayPoint_(pSeries, dayKey, pid);
+    if (idx >= 0) pSeries[idx] = point;
+    else pSeries.push(point);
+  });
+
+  var teamPoint = {
+    dayKey: dayKey,
+    capturedAt: iso,
+    totalPushUps: result.team.totalPushUps,
+    fundraising: result.team.fundraising,
+    participantCount: result.team.participantCount,
+    rank: result.team.rank != null ? result.team.rank : null,
+  };
+  var tIdx = findDayPoint_(tSeries, dayKey, null);
+  if (tIdx >= 0) tSeries[tIdx] = teamPoint;
+  else tSeries.push(teamPoint);
+
+  return updateWrite_(path, fsMap_({
+    teamId: fsStr_(teamId),
+    updatedAt: fsTs_(capturedAt),
+    participantSeries: fsStr_(JSON.stringify(pSeries)),
+    teamSeries: fsStr_(JSON.stringify(tSeries)),
+  }));
+}
+
+/** Index of a series point for a day (and participant, if given), else -1. */
+function findDayPoint_(arr, dayKey, pid) {
+  for (var i = 0; i < arr.length; i++) {
+    if (arr[i].dayKey === dayKey && (pid == null || arr[i].participantId === pid)) return i;
+  }
+  return -1;
+}
+
+function safeParseArray_(s) {
+  if (typeof s !== 'string') return [];
+  try {
+    var v = JSON.parse(s);
+    return Array.isArray(v) ? v : [];
+  } catch (e) {
+    return [];
+  }
 }
 
 /** Append a syncRuns doc (auto id), mirroring recordSyncRun. */
@@ -620,6 +694,99 @@ function listParticipants_(teamId) {
     pageToken = body.nextPageToken || '';
   } while (pageToken);
   return out;
+}
+
+/** Fetch a single document's decoded fields, or null if it doesn't exist. */
+function firestoreGetDoc_(path) {
+  var token = getAccessToken_();
+  var res = UrlFetchApp.fetch(firestoreBase_() + '/' + path, {
+    method: 'get',
+    headers: { Authorization: 'Bearer ' + token },
+    muteHttpExceptions: true,
+  });
+  var code = res.getResponseCode();
+  if (code === 404) return null;
+  if (code !== 200) throw new Error('Firestore get failed: ' + code + ' ' + res.getContentText());
+  return fsDecodeFields_(JSON.parse(res.getContentText()).fields || {});
+}
+
+/** Decoded docs from a (sub)collection, following pagination. */
+function listCollection_(path) {
+  var token = getAccessToken_();
+  var out = [];
+  var pageToken = '';
+  do {
+    var url = firestoreBase_() + '/' + path + '?pageSize=300' +
+      (pageToken ? '&pageToken=' + encodeURIComponent(pageToken) : '');
+    var res = UrlFetchApp.fetch(url, {
+      method: 'get',
+      headers: { Authorization: 'Bearer ' + token },
+      muteHttpExceptions: true,
+    });
+    var code = res.getResponseCode();
+    if (code === 404) return out;
+    if (code !== 200) throw new Error('Firestore list failed: ' + code + ' ' + res.getContentText());
+    var body = JSON.parse(res.getContentText());
+    (body.documents || []).forEach(function (d) { out.push(fsDecodeFields_(d.fields || {})); });
+    pageToken = body.nextPageToken || '';
+  } while (pageToken);
+  return out;
+}
+
+/**
+ * ONE-OFF: seed the rollup series from the existing snapshot history, so the
+ * whole-challenge charts show the days already elapsed (the incremental rollup
+ * only captures data from now on). Run this once, manually, after the daily read
+ * quota has reset — it reads the full snapshot collections a single time.
+ */
+function backfillRollup() {
+  TRACKED_TEAMS.forEach(function (team) {
+    var base = 'teams/' + team.teamId;
+
+    // Latest point per (participant, day).
+    var pById = {};
+    listCollection_(base + '/participantSnapshots').forEach(function (s) {
+      var key = s.participantId + '|' + s.dayKey;
+      if (!pById[key] || String(s.capturedAt) > String(pById[key].capturedAt)) {
+        pById[key] = {
+          participantId: s.participantId,
+          dayKey: s.dayKey,
+          capturedAt: s.capturedAt,
+          totalPushUps: s.totalPushUps || 0,
+          todayPushUps: s.todayPushUps || 0,
+          fundraising: s.fundraising || 0,
+          rank: s.rank != null ? s.rank : null,
+        };
+      }
+    });
+
+    // Latest point per day for the team.
+    var tByDay = {};
+    listCollection_(base + '/teamSnapshots').forEach(function (s) {
+      if (!tByDay[s.dayKey] || String(s.capturedAt) > String(tByDay[s.dayKey].capturedAt)) {
+        tByDay[s.dayKey] = {
+          dayKey: s.dayKey,
+          capturedAt: s.capturedAt,
+          totalPushUps: s.totalPushUps || 0,
+          fundraising: s.fundraising || 0,
+          participantCount: s.participantCount || 0,
+          rank: s.rank != null ? s.rank : null,
+        };
+      }
+    });
+
+    var pSeries = Object.keys(pById).map(function (k) { return pById[k]; });
+    var tSeries = Object.keys(tByDay).map(function (k) { return tByDay[k]; });
+
+    firestoreCommit_([updateWrite_(base + '/rollups/series', fsMap_({
+      teamId: fsStr_(team.teamId),
+      updatedAt: fsTs_(new Date()),
+      participantSeries: fsStr_(JSON.stringify(pSeries)),
+      teamSeries: fsStr_(JSON.stringify(tSeries)),
+    }))]);
+    Logger.log('backfill %s: %s participant-day points, %s team-day points',
+      team.teamId, pSeries.length, tSeries.length);
+  });
 }
 
 // ---------------------------------------------------------------------------
